@@ -1,0 +1,32 @@
+<%
+  var _active = (typeof active !== 'undefined') ? active : '';
+  var _user = (typeof user !== 'undefined') ? user : null;
+  var _dash = (typeof dashHref !== 'undefined') ? dashHref : '/login';
+%>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/" class="logo">BuzzMind</a>
+
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/about" class="nav-link <%= _active === 'about' ? 'active' : '' %>">About</a>
+      <a href="/pricing" class="nav-link <%= _active === 'pricing' ? 'active' : '' %>">Pricing</a>
+      <a href="/contact" class="nav-link <%= _active === 'contact' ? 'active' : '' %>">Contact</a>
+      <a href="/privacy" class="nav-link <%= _active === 'privacy' ? 'active' : '' %>">Privacy</a>
+    </nav>
+
+    <div class="nav-actions">
+      <button type="button" class="lang-toggle" data-lang-toggle data-no-i18n aria-label="Switch language">
+        <span class="ic"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>
+        <span class="lt-label">العربية</span>
+      </button>
+      <% if (_user) { %>
+        <span class="nav-greet"><span class="greet-hi">Hi,</span> <span class="greet-name" data-no-i18n><%= _user.Name %></span></span>
+        <a href="<%= _dash %>" class="btn btn-secondary">Dashboard</a>
+        <a href="/logout" class="btn btn-primary">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn btn-secondary">Log in</a>
+        <a href="/register" class="btn btn-primary">Sign up</a>
+      <% } %>
+    </div>
+  </div>
+</nav>

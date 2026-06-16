@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · About</title>
+  <link rel="stylesheet" href="/shared/site.css" />
+</head>
+<body>
+  <%- include('../partials/site-nav', { active: 'about' }) %>
+
+  <header class="page-hero">
+    <span class="eyebrow">Our story</span>
+    <h1>We make learning feel like <span class="grad">play</span></h1>
+    <p class="lead">
+      BuzzMind turns every classroom into a high-energy game show. We help professors create
+      interactive quizzes and help students learn faster by actually having fun.
+    </p>
+  </header>
+
+  <section class="section tight">
+    <div class="section-head">
+      <h2>Why we built BuzzMind</h2>
+      <p>
+        Lectures are easy to forget. Games are hard to forget. We built BuzzMind so educators
+        can harness that energy — live quizzes, instant feedback, and friendly competition that
+        keeps every student engaged from the first question to the last.
+      </p>
+    </div>
+
+    <div class="card-grid">
+      <div class="info-card">
+        <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg></span>
+        <h3>Play to learn</h3>
+        <p>Points, streaks, and live leaderboards turn revision into a game students want to win.</p>
+      </div>
+      <div class="info-card alt">
+        <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <h3>Built for classrooms</h3>
+        <p>Designed with real professors so it fits how you actually teach, assess, and track progress.</p>
+      </div>
+      <div class="info-card">
+        <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+        <h3>Insightful by design</h3>
+        <p>Every game produces clear reports, so you know exactly who needs help and where.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="stats-strip">
+      <div class="stat"><div class="num">10K+</div><div class="lbl">Quizzes played</div></div>
+      <div class="stat"><div class="num">500+</div><div class="lbl">Classrooms</div></div>
+      <div class="stat"><div class="num">1M+</div><div class="lbl">Questions answered</div></div>
+      <div class="stat"><div class="num">98%</div><div class="lbl">Teacher satisfaction</div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="cta-band">
+      <h2>Ready to join the fun?</h2>
+      <p>Create your free account and run your first live quiz in minutes.</p>
+      <div class="hero-buttons" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+        <a href="/register?role=professor" class="btn btn-create btn-lg">Sign up as a Professor</a>
+        <a href="/pricing" class="btn btn-secondary btn-lg">See pricing</a>
+      </div>
+    </div>
+  </section>
+
+  <%- include('../partials/site-footer') %>
+
+  <script src="/shared/i18n.js"></script>
+</body>
+</html>

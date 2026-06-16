@@ -1,0 +1,9 @@
+{
+  "watch": ["."],
+  "ext": "js,json,ejs,css,html",
+  "ignore": [
+    "public/uploads/**",
+    "node_modules/**",
+    "*.log"
+  ]
+}

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · My Assignments</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/student-sidebar', { active: 'assignments' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>My Assignments</h1>
+        <div class="sub">Everything due across your classes, in one place.</div>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="stat-grid" id="statGrid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+        <div class="stat-card"><div class="lbl">To do</div><div class="num b" id="cTodo">—</div></div>
+        <div class="stat-card"><div class="lbl">Submitted</div><div class="num p" id="cSubmitted">—</div></div>
+        <div class="stat-card"><div class="lbl">Graded</div><div class="num g" id="cGraded">—</div></div>
+        <div class="stat-card"><div class="lbl">Missed</div><div class="num a" id="cMissed">—</div></div>
+      </div>
+
+      <div class="chips" id="filter" style="margin:6px 0 18px">
+        <div class="chip on" data-f="">All</div>
+        <div class="chip" data-f="todo">To do</div>
+        <div class="chip" data-f="submitted">Submitted</div>
+        <div class="chip" data-f="graded">Graded</div>
+        <div class="chip" data-f="missed">Missed</div>
+      </div>
+
+      <div id="showMoreRow" class="student-show-more-row">
+        <button type="button" class="btn btn-sm student-show-more-btn" id="showMoreBtn">
+          <span class="ic" data-icon="chevron-right"></span>
+          Show more
+        </button>
+      </div>
+      <div id="list" class="grid"><div class="empty">Loading assignments…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Submit modal -->
+<div class="modal-back" id="submitModal">
+  <div class="modal">
+    <h2 id="smTitle">Submit work</h2>
+    <div class="modal-sub" id="smSub"></div>
+    <div class="form-alert" id="smAlert"></div>
+    <div id="smInstructions" class="muted" style="font-size:13px;margin-bottom:14px"></div>
+    <form id="submitForm">
+      <input type="hidden" id="smId" />
+      <div class="field" id="smTextWrap">
+        <label>Your answer</label>
+        <textarea id="smText" rows="6" placeholder="Type your response…"></textarea>
+      </div>
+      <div class="field" id="smFileWrap">
+        <label>Attach files <span class="hint">(PDF, Word, images)</span></label>
+        <div class="file-picker">
+          <input type="file" id="smFiles" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,image/*" />
+          <label class="file-picker-btn" for="smFiles">
+            <span class="ic" data-icon="paperclip"></span>
+            Add files
+          </label>
+          <span class="file-picker-text" data-file-label data-empty="No files selected">No files selected</span>
+        </div>
+        <div id="smChips" class="chips" style="margin-top:10px"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="smCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="smSave">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+  const INITIAL_VISIBLE = 3;
+  let assignments = [];
+  let filter = '';
+  let pendingFiles = [];
+  let showAll = false;
+
+  function statusOf(a) {
+    if (a.submission && a.submission.status === 'graded') return 'graded';
+    if (a.submission) return 'submitted';
+    if (a.missed) return 'missed';
+    return 'todo';
+  }
+
+  function statusBadge(a) {
+    const s = statusOf(a);
+    if (s === 'graded') {
+      const pct = a.points ? Math.round((a.submission.grade / a.points) * 100) : null;
+      return `<span class="badge role-student">Graded · ${a.submission.grade}/${a.points}${pct != null ? ` (${pct}%)` : ''}</span>`;
+    }
+    if (s === 'submitted') return `<span class="badge role-admin">Submitted${a.submission.late ? ' · late' : ''}</span>`;
+    if (s === 'missed') return `<span class="badge b-red">Missed</span>`;
+    return `<span class="badge" style="background:var(--bg-2);color:var(--muted)">To do</span>`;
+  }
+
+  function attachLinks(atts) {
+    if (!atts || !atts.length) return '';
+    return `<div style="display:flex;flex-wrap:wrap;gap:6px">${atts
+      .map((f) => `<a href="${E(f.url)}" target="_blank" class="badge b-blue" style="text-decoration:none"><span class="ic">${Dash.icon('paperclip')}</span> ${E(f.name)}</a>`)
+      .join('')}</div>`;
+  }
+
+  function cardHtml(a) {
+    const due = a.dueDate ? Dash.fmtDateTime(a.dueDate) : 'No due date';
+    const overdue = a.dueDate && new Date(a.dueDate) < new Date() && statusOf(a) === 'todo';
+    const s = statusOf(a);
+    const canSubmit = s === 'todo' || s === 'submitted' || s === 'missed';
+    return `<div class="card" data-id="${a.id}">
+      <div class="assign-card-head">
+        <div class="assign-title-wrap">
+          <span class="assign-main-ic">${Dash.icon('file-text')}</span>
+          <h3>${E(a.title)}</h3>
+        </div>
+        ${statusBadge(a)}
+      </div>
+      <div class="meta">${E(a.className || 'Class')} · ${a.points} pts</div>
+      ${a.description ? `<div class="muted" style="font-size:13px;max-height:60px;overflow:hidden">${E(a.description)}</div>` : ''}
+      ${attachLinks(a.attachments)}
+      <div class="meta" style="font-size:12px;color:${overdue ? 'var(--red)' : 'var(--muted)'}"><span class="ic">${Dash.icon('calendar')}</span> Due ${due}</div>
+      ${a.submission && a.submission.feedback ? `<div class="meta" style="font-size:12px;background:var(--bg-2);padding:8px;border-radius:8px;align-items:flex-start"><span class="ic">${Dash.icon('message-square')}</span> ${E(a.submission.feedback)}</div>` : ''}
+      <div style="margin-top:4px">
+        ${canSubmit ? `<button class="btn btn-sm btn-primary" data-act="submit">${a.submission ? 'Resubmit' : 'Submit work'}</button>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function updateCounts() {
+    const c = { todo: 0, submitted: 0, graded: 0, missed: 0 };
+    assignments.forEach((a) => { c[statusOf(a)] += 1; });
+    document.getElementById('cTodo').textContent = c.todo;
+    document.getElementById('cSubmitted').textContent = c.submitted;
+    document.getElementById('cGraded').textContent = c.graded;
+    document.getElementById('cMissed').textContent = c.missed;
+  }
+
+  function updateShowMore(total, showing) {
+    const row = document.getElementById('showMoreRow');
+    const btn = document.getElementById('showMoreBtn');
+    const remaining = total - showing;
+    if (!row || !btn) return;
+
+    if (remaining > 0) {
+      row.style.display = 'flex';
+      btn.innerHTML = `${Dash.icon('chevron-right')} Show more (${remaining})`;
+    } else {
+      row.style.display = 'none';
+    }
+  }
+
+  function render() {
+    const el = document.getElementById('list');
+    const list = filter ? assignments.filter((a) => statusOf(a) === filter) : assignments;
+    if (!list.length) {
+      updateShowMore(0, 0);
+      el.innerHTML = `<div class="empty"><div class="big">${Dash.icon('file-text')}</div>Nothing here.</div>`;
+      return;
+    }
+    const visible = showAll ? list : list.slice(0, INITIAL_VISIBLE);
+    el.innerHTML = visible.map(cardHtml).join('');
+    updateShowMore(list.length, visible.length);
+    el.querySelectorAll('.card[data-id]').forEach((card) => {
+      const a = assignments.find((x) => x.id === card.dataset.id);
+      const btn = card.querySelector('[data-act="submit"]');
+      if (btn) btn.addEventListener('click', () => openSubmit(a));
+    });
+  }
+
+  function renderChips() {
+    const el = document.getElementById('smChips');
+    el.innerHTML = pendingFiles
+      .map((f, i) => `<span class="chip" style="cursor:default">${E(f.name)} <span data-rm="${i}" style="cursor:pointer;color:#ff7a7a">&times;</span></span>`)
+      .join('');
+    el.querySelectorAll('[data-rm]').forEach((x) => {
+      x.addEventListener('click', () => { pendingFiles.splice(Number(x.dataset.rm), 1); renderChips(); });
+    });
+  }
+
+  function smAlert(msg, type) {
+    const a = document.getElementById('smAlert');
+    a.textContent = msg || '';
+    a.className = msg ? `form-alert show ${type || 'error'}` : 'form-alert';
+  }
+
+  function openSubmit(a) {
+    document.getElementById('submitForm').reset();
+    Dash.resetFilePicker('smFiles');
+    document.getElementById('smId').value = a.id;
+    document.getElementById('smTitle').textContent = a.submission ? 'Resubmit work' : 'Submit work';
+    document.getElementById('smSub').textContent = `${a.title} · ${a.className || ''}`;
+    document.getElementById('smInstructions').textContent = a.description || '';
+    document.getElementById('smTextWrap').style.display = a.type === 'file' ? 'none' : '';
+    document.getElementById('smFileWrap').style.display = a.type === 'text' ? 'none' : '';
+    pendingFiles = a.submission && a.submission.files ? a.submission.files.map((f) => ({ url: f.url, name: f.name })) : [];
+    if (a.submission && a.submission.text) document.getElementById('smText').value = a.submission.text;
+    renderChips();
+    smAlert('');
+    Dash.openModal('submitModal');
+  }
+
+  async function onFiles(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    smAlert('Uploading…', 'success');
+    for (const f of files) {
+      try {
+        const meta = await BuzzMindAPI.uploadFile(f);
+        pendingFiles.push({ url: meta.url, name: meta.name });
+      } catch (err) {
+        Dash.toast(err.message || `Could not upload ${f.name}`, 'error');
+      }
+    }
+    Dash.resetFilePicker(e.target);
+    smAlert('');
+    renderChips();
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    const id = document.getElementById('smId').value;
+    const body = {
+      text: document.getElementById('smText').value.trim(),
+      files: pendingFiles,
+    };
+    if (!body.text && !body.files.length) { smAlert('Add text or attach a file before submitting.'); return; }
+    const btn = document.getElementById('smSave');
+    btn.disabled = true;
+    try {
+      await BuzzMindAPI.submitAssignment(id, body);
+      Dash.closeModal('submitModal');
+      Dash.toast('Work submitted.');
+      await load();
+    } catch (err) {
+      smAlert(err.message || 'Could not submit.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function load() {
+    try {
+      assignments = await BuzzMindAPI.getAssignments();
+      updateCounts();
+      render();
+    } catch (err) {
+      Dash.toast(err.message || 'Failed to load assignments', 'error');
+      document.getElementById('list').innerHTML = `<div class="empty">Could not load assignments.</div>`;
+    }
+  }
+
+  document.getElementById('smCancel').addEventListener('click', () => Dash.closeModal('submitModal'));
+  document.getElementById('submitForm').addEventListener('submit', submit);
+  document.getElementById('smFiles').addEventListener('change', onFiles);
+  document.getElementById('submitModal').addEventListener('click', (e) => {
+    if (e.target.id === 'submitModal') Dash.closeModal('submitModal');
+  });
+  document.getElementById('filter').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#filter .chip').forEach((c) => c.classList.remove('on'));
+    chip.classList.add('on');
+    filter = chip.dataset.f;
+    showAll = false;
+    render();
+  });
+  document.getElementById('showMoreBtn').addEventListener('click', () => {
+    showAll = true;
+    render();
+  });
+
+  Dash.boot();
+  load();
+})();
+</script>
+</body>
+</html>

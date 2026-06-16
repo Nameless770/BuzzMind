@@ -1,0 +1,64 @@
+<div class="dash-content">
+  <div class="card" style="display:flex;align-items:center;gap:16px;margin-bottom:18px">
+    <div class="av" id="profileAvatar" style="width:56px;height:56px;border-radius:14px;display:grid;place-items:center;font-weight:700;color:#fff;font-size:20px;background:linear-gradient(135deg,var(--brand),var(--brand-2))">U</div>
+    <div>
+      <h2 style="margin:0;font-size:20px" id="profileName">Your Name</h2>
+      <div class="sub" id="profileRole" style="text-transform:capitalize">—</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <div class="row-between" style="margin-bottom:14px">
+      <h3 style="margin:0">Account settings</h3>
+    </div>
+    <div class="form-alert" id="accountMsg"></div>
+    <div class="field" style="margin-bottom:16px">
+      <label>Profile photo</label>
+      <div class="file-picker compact">
+        <input type="file" id="avatarInput" accept="image/*" />
+        <label class="file-picker-btn" for="avatarInput">
+          <span class="ic" data-icon="image"></span>
+          Choose image
+        </label>
+        <span class="file-picker-text" data-file-label data-empty="No image selected">No image selected</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Display name</label>
+        <input type="text" id="displayName" placeholder="Enter your name" autocomplete="name" />
+      </div>
+      <div class="field">
+        <label>Email address</label>
+        <input type="email" id="emailAddress" placeholder="Enter your email" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Username / ID</label>
+        <input type="text" id="username" autocomplete="username" />
+      </div>
+    </div>
+    <button class="btn btn-primary" type="button" id="saveAccountBtn"><span class="ic" data-icon="save"></span> Save changes</button>
+  </div>
+
+  <div class="card">
+    <div class="row-between" style="margin-bottom:14px">
+      <h3 style="margin:0">Security &amp; password</h3>
+    </div>
+    <div class="form-alert" id="passwordMsg"></div>
+    <div class="field">
+      <label>Current password</label>
+      <input type="password" id="currentPassword" placeholder="Enter current password" autocomplete="current-password" />
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>New password</label>
+        <input type="password" id="newPassword" placeholder="Enter new password" autocomplete="new-password" />
+      </div>
+      <div class="field">
+        <label>Confirm new password</label>
+        <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password" />
+      </div>
+    </div>
+    <button class="btn btn-primary" type="button" id="updatePasswordBtn"><span class="ic" data-icon="save"></span> Update password</button>
+  </div>
+</div>

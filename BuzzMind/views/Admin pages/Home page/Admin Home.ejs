@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Professors</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/admin-sidebar', { active: 'professors' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>Professor Directory</h1>
+        <div class="sub">Create, edit and manage every faculty member.</div>
+      </div>
+      <div class="right">
+        <div class="search">
+          <span class="ic" data-icon="search"></span>
+          <input type="text" id="searchInput" placeholder="Search name, email, department..." />
+        </div>
+        <button class="btn btn-primary" id="addBtn"><span class="ic" data-icon="plus"></span> Add Professor</button>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-ic g"><span class="ic" data-icon="graduation-cap"></span></div>
+          <div><div class="lbl">Active staff</div><div class="num" id="sStaff">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic b"><span class="ic" data-icon="users"></span></div>
+          <div><div class="lbl">Total students</div><div class="num" id="sStudents">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic"><span class="ic" data-icon="book-open"></span></div>
+          <div><div class="lbl">Classes taught</div><div class="num" id="sClasses">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic a"><span class="ic" data-icon="award"></span></div>
+          <div><div class="lbl">Departments</div><div class="num" id="sDepts">—</div></div>
+        </div>
+      </div>
+
+      <div class="grid" id="profGrid"><div class="empty">Loading professors…</div></div>
+      <div class="view-all-row" id="profViewAllRow" style="display:none">
+        <button class="btn" id="viewAllBtn" type="button"><span class="ic" data-icon="eye"></span> View All</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit professor modal -->
+<div class="modal-back" id="profModal">
+  <div class="modal">
+    <h2 id="pmTitle">Add Professor</h2>
+    <div class="modal-sub">Accounts are created instantly. Share the generated password with the professor.</div>
+    <div class="form-alert" id="pmAlert"></div>
+    <form id="profForm">
+      <input type="hidden" id="pmId" />
+      <input type="hidden" id="pmCardImageUrl" />
+      <div class="field">
+        <label>Full name</label>
+        <input type="text" id="pmName" placeholder="Dr. Jane Smith" required />
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="pmEmail" placeholder="jane@university.edu" required />
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Department</label>
+          <input type="text" id="pmDept" placeholder="Computer Science" />
+        </div>
+        <div class="field">
+          <label>Password <span class="hint" id="pmPwHint">(optional)</span></label>
+          <input type="text" id="pmPassword" placeholder="auto-generated if blank" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Card photo <span class="hint">(optional)</span></label>
+        <div class="file-picker">
+          <input type="file" id="pmCardImage" accept="image/*" />
+          <label class="file-picker-btn" for="pmCardImage">
+            <span class="ic" data-icon="image"></span>
+            Choose photo
+          </label>
+          <span class="file-picker-text" data-file-label data-empty="No photo selected">No photo selected</span>
+        </div>
+        <div class="hint" id="pmImageHint">Default mail icon is used if no photo is selected.</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="pmCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="pmSave">Add Professor</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+  let professors = [];
+  let query = '';
+  let showAll = false;
+
+  function updateStats() {
+    const students = professors.reduce((n, p) => n + (p.studentCount || 0), 0);
+    const classes = professors.reduce((n, p) => n + (p.classCount || 0), 0);
+    const depts = new Set(professors.map((p) => (p.department || 'GENERAL').toUpperCase()));
+    document.getElementById('sStaff').textContent = professors.length;
+    document.getElementById('sStudents').textContent = students;
+    document.getElementById('sClasses').textContent = classes;
+    document.getElementById('sDepts').textContent = depts.size;
+  }
+
+  function cardArtHtml(professor) {
+    const imageUrl = professor.cardImageUrl || '';
+    if (imageUrl) {
+      return `<div class="card-art"><img src="${E(imageUrl)}" alt="${E(professor.name)} card photo"></div>`;
+    }
+    return `<div class="card-art card-art-icon" aria-label="Default mail photo">${Dash.icon('mail')}</div>`;
+  }
+
+  async function uploadSelectedImage(input) {
+    const imageFile = input.files && input.files[0];
+    if (!imageFile) return '';
+    const meta = await BuzzMindAPI.uploadFile(imageFile);
+    return meta.url || '';
+  }
+
+  function cardHtml(professor) {
+    const dept = (professor.department || 'GENERAL').toUpperCase();
+    return `<div class="card" data-id="${professor.id}">
+      <div style="display:flex;gap:12px;align-items:center">
+        ${Dash.avatarHTML(professor.name, professor.id, professor.avatarUrl)}
+        <div style="min-width:0;flex:1">
+          <h3 style="margin:0;overflow:hidden;text-overflow:ellipsis">${E(professor.name)}</h3>
+          <span class="badge b-purple">${E(dept)}</span>
+        </div>
+      </div>
+      ${cardArtHtml(professor)}
+      <div class="row-between" style="margin-top:2px">
+        <span class="badge b-blue">${professor.classCount || 0} classes</span>
+        <span class="badge b-green">${professor.studentCount || 0} students</span>
+      </div>
+      <div class="card-foot">
+        <a href="/Admin pages/Overview/professor.html?id=${encodeURIComponent(professor.id)}" style="text-decoration:none"><button class="btn btn-sm btn-primary" type="button"><span class="ic">${Dash.icon('eye')}</span> View</button></a>
+        <button class="btn btn-sm" data-act="edit" type="button"><span class="ic">${Dash.icon('pencil')}</span> Edit</button>
+        <button class="btn btn-sm btn-danger" data-act="del" type="button"><span class="ic">${Dash.icon('trash')}</span></button>
+      </div>
+    </div>`;
+  }
+
+  function render() {
+    const grid = document.getElementById('profGrid');
+    const list = query
+      ? professors.filter((p) => `${p.name} ${p.email} ${p.department || ''}`.toLowerCase().includes(query))
+      : professors;
+    const visible = query || showAll ? list : list.slice(0, 2);
+    const viewRow = document.getElementById('profViewAllRow');
+    const viewBtn = document.getElementById('viewAllBtn');
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty"><div class="big">${Dash.icon('graduation-cap')}</div>No professors found. Add one to get started.</div>`;
+      viewRow.style.display = 'none';
+      return;
+    }
+    grid.innerHTML = visible.map(cardHtml).join('');
+    viewRow.style.display = !query && list.length > 2 ? 'flex' : 'none';
+    viewBtn.innerHTML = `<span class="ic">${Dash.icon(showAll ? 'chevron-right' : 'eye')}</span> ${showAll ? 'Show Less' : 'View All'}`;
+    grid.querySelectorAll('.card').forEach((card) => {
+      const p = professors.find((x) => x.id === card.dataset.id);
+      card.querySelector('[data-act="edit"]').addEventListener('click', () => openEdit(p));
+      card.querySelector('[data-act="del"]').addEventListener('click', () => removeProf(p));
+    });
+  }
+
+  async function load() {
+    try {
+      professors = await BuzzMindAPI.getProfessors();
+      updateStats();
+      render();
+    } catch (err) {
+      Dash.toast(err.message || 'Failed to load professors', 'error');
+      document.getElementById('profGrid').innerHTML = `<div class="empty">Could not load professors.</div>`;
+    }
+  }
+
+  function setAlert(msg, type) {
+    const a = document.getElementById('pmAlert');
+    a.textContent = msg || '';
+    a.className = msg ? `form-alert show ${type || 'error'}` : 'form-alert';
+  }
+
+  function openCreate() {
+    document.getElementById('profForm').reset();
+    Dash.resetFilePicker('pmCardImage');
+    document.getElementById('pmId').value = '';
+    document.getElementById('pmCardImageUrl').value = '';
+    document.getElementById('pmTitle').textContent = 'Add Professor';
+    document.getElementById('pmSave').textContent = 'Add Professor';
+    document.getElementById('pmPwHint').textContent = '(optional — auto-generated if blank)';
+    document.getElementById('pmImageHint').textContent = 'Default mail icon is used if no photo is selected.';
+    setAlert('');
+    Dash.openModal('profModal');
+    document.getElementById('pmName').focus();
+  }
+
+  function openEdit(p) {
+    document.getElementById('profForm').reset();
+    Dash.resetFilePicker('pmCardImage');
+    document.getElementById('pmId').value = p.id;
+    document.getElementById('pmCardImageUrl').value = p.cardImageUrl || '';
+    document.getElementById('pmName').value = p.name || '';
+    document.getElementById('pmEmail').value = p.email || '';
+    document.getElementById('pmDept').value = p.department && p.department !== 'GENERAL' ? p.department : '';
+    document.getElementById('pmTitle').textContent = 'Edit Professor';
+    document.getElementById('pmSave').textContent = 'Save changes';
+    document.getElementById('pmPwHint').textContent = '(leave blank to keep current)';
+    document.getElementById('pmImageHint').textContent = p.cardImageUrl
+      ? 'Current card photo stays unless you choose a new one.'
+      : 'Default mail icon is used unless you choose a photo.';
+    setAlert('');
+    Dash.openModal('profModal');
+  }
+
+  async function removeProf(p) {
+    try {
+      await BuzzMindAPI.deleteProfessor(p.id);
+      professors = professors.filter((x) => x.id !== p.id);
+      updateStats();
+      render();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    const id = document.getElementById('pmId').value;
+    const body = {
+      name: document.getElementById('pmName').value.trim(),
+      email: document.getElementById('pmEmail').value.trim(),
+      department: document.getElementById('pmDept').value.trim() || 'GENERAL',
+    };
+    const existingImageUrl = document.getElementById('pmCardImageUrl').value;
+    const pw = document.getElementById('pmPassword').value.trim();
+    if (pw) body.password = pw;
+    if (!body.name || !body.email) { setAlert('Name and email are required.'); return; }
+
+    const btn = document.getElementById('pmSave');
+    btn.disabled = true;
+    try {
+      const uploadedImageUrl = await uploadSelectedImage(document.getElementById('pmCardImage'));
+      if (uploadedImageUrl) body.cardImageUrl = uploadedImageUrl;
+      else if (existingImageUrl) body.cardImageUrl = existingImageUrl;
+
+      if (id) {
+        await BuzzMindAPI.updateProfessor(id, body);
+        Dash.closeModal('profModal');
+        Dash.toast('Professor updated.');
+        await load();
+      } else {
+        const created = await BuzzMindAPI.createProfessor(body);
+        if (created && created.generatedPassword) {
+          setAlert(`Account created. Temporary password: ${created.generatedPassword}`, 'success');
+          Dash.toast('Professor created — password shown in the form.');
+        } else {
+          Dash.closeModal('profModal');
+          Dash.toast('Professor added.');
+        }
+        await load();
+      }
+    } catch (err) {
+      setAlert(err.message || 'Could not save professor.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('addBtn').addEventListener('click', openCreate);
+  document.getElementById('pmCancel').addEventListener('click', () => Dash.closeModal('profModal'));
+  document.getElementById('profForm').addEventListener('submit', submit);
+  document.getElementById('viewAllBtn').addEventListener('click', () => {
+    showAll = !showAll;
+    render();
+  });
+  document.getElementById('profModal').addEventListener('click', (e) => {
+    if (e.target.id === 'profModal') Dash.closeModal('profModal');
+  });
+  document.getElementById('searchInput').addEventListener('input', function () {
+    query = this.value.trim().toLowerCase();
+    render();
+  });
+
+  Dash.boot();
+  load();
+})();
+</script>
+</body>
+</html>

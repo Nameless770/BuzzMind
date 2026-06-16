@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BuzzMind – The Fun Way to Learn and Play</title>
+    <link
+      rel="stylesheet"
+      href="/Student pages/Joined Students/Joined Students.css" />
+  </head>
+
+  <body>
+    <!-- ===== NAVBAR ===== -->
+    <nav class="navbar">
+      <a href="/Student pages/Settings page/Settings.html" class="logo">BuzzMind</a>
+      <ul class="nav-links">
+        <li><a href="/Student pages/Home Page/Index.html" class="active">Discover</a></li>
+        <li><a href="/Student pages/Libary/index.html">Library</a></li>
+        <li><a href="/Student pages/reports_design/reports_page.html">Reports</a></li>
+      </ul>
+      <div class="nav-actions">
+        <div class="avatar"></div>
+      </div>
+    </nav>
+
+    <!-- ===== MAIN CONTENT =====-->
+    <div class="wrap">
+      <div class="status-pill">WAITING FOR PROFESSOR TO START...</div>
+
+      <div class="pin-card">
+        <div class="pin-label">GAME PIN</div>
+        <div class="pin-number">---</div>
+      </div>
+      <div class="content-container">
+        <div class="players-card">
+          <div class="players-header">
+            <div class="players-title">
+              Players Joined <span class="players-count">0</span>
+            </div>
+          </div>
+
+          <div class="players-grid"></div>
+        </div>
+        <div class="start-area">
+          <p class="waiting-prof-note">Only your professor can start the quiz.</p>
+        </div>
+      </div>
+    </div>
+    <!-- ===== FOOTER ===== -->
+    <footer class="footer">
+      <div class="footer-brand">
+        <a href="#" class="logo footer-logo">BuzzMind</a>
+        <p>
+          Empowering learners and educators through kinetic, high-energy play.
+        </p>
+      </div>
+    </footer>
+
+    <div class="footer-bottom">
+      <span>© 2025 BuzzMind. All rights reserved.</span>
+      <div>
+        <a href="#">English</a>
+        <a href="#">Global</a>
+      </div>
+    </div>
+    <script src="/buzzmind-api.js"></script>
+    <script src="/shared/avatar.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+  <script src="/Student pages/Joined Students/joined-lobby.js"></script>
+</body>
+</html>

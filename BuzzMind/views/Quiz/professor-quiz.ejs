@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BuzzMind - Professor View</title>
+    <link rel="stylesheet" href="/Quiz/style.css" />
+    <link rel="stylesheet" href="/Quiz/quiz.css" />
+    <link rel="stylesheet" href="/Quiz/professor-quiz.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&family=DM+Sans:wght@400;500&display=swap"
+      rel="stylesheet" />
+  </head>
+  <body>
+    <div
+      class="launch-lobby-overlay"
+      id="launchLobbyOverlay"
+      style="display: none">
+      <div
+        class="wrap"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="launchLobbyTitle">
+        <div class="status-pill" id="lobbyStatusText">
+          WAITING FOR PLAYERS...
+        </div>
+        <div class="pin-card">
+          <div class="pin-label">GAME PIN</div>
+          <div class="pin-number" id="lobbyGamePin">---</div>
+        </div>
+        <div class="content-container">
+          <div class="players-card">
+            <div class="players-header">
+              <div class="players-title">
+                <span id="launchLobbyTitle">Players Joined</span>
+                <span class="players-count" id="lobbyStudentCount">0</span>
+              </div>
+            </div>
+            <div class="players-grid" id="lobbyStudentsList"></div>
+          </div>
+          <div class="start-area">
+            <button class="start-btn" id="lobbyStartBtn" type="button">
+              Start Quiz
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <header class="prof-quiz-hero">
+      <div>
+        <a class="quiz-back-link" href="/Prof page/Classes page/professor2.html">
+          Back to classes
+        </a>
+        <p class="quiz-eyebrow">Live quiz control</p>
+        <h1>Question Control Room</h1>
+        <p class="quiz-hero-copy">
+          Watch submissions, pace the room, and keep the leaderboard visible while
+          students answer in real time.
+        </p>
+      </div>
+      <div class="quiz-hero-chip">Professor View</div>
+    </header>
+
+    <main class="prof-main">
+      <section class="prof-question-panel">
+        <div class="prof-question-header">
+          <span class="question-badge" id="profQuestionBadge"
+            >QUESTION 1 OF 10</span
+          >
+          <h2 class="prof-question-text" id="profQuestionText">
+            Waiting to start...
+          </h2>
+        </div>
+
+        <div id="profImageWrapper" style="display: none">
+          <img
+            id="profQuestionImage"
+            src=""
+            alt="Question image"
+            class="question-img" />
+        </div>
+
+        <div class="prof-answers-grid" id="profAnswersGrid"></div>
+      </section>
+
+      <aside class="prof-stats-panel">
+        <div class="stat-card">
+          <p class="stat-label">ANSWERS SUBMITTED</p>
+          <p class="stat-value" id="submittedCount">0 / 0</p>
+          <div class="stat-bar-bg">
+            <div
+              class="stat-bar-fill"
+              id="submittedBar"
+              style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <p class="stat-label">TIME REMAINING</p>
+          <p class="stat-value timer-big" id="profTimer">20s</p>
+        </div>
+
+        <div class="prof-controls">
+          <button
+            class="btn-next"
+            id="nextBtn"
+            onclick="nextQuestion()">
+            Next Question
+          </button>
+          <button
+            class="btn-end"
+            id="endBtn"
+            onclick="endQuiz()"
+            style="display: none">
+            End Quiz
+          </button>
+        </div>
+
+        <div class="leaderboard-card">
+          <div class="leaderboard-heading">
+            <h3 class="leaderboard-title">Live Leaderboard</h3>
+            <p>Top 5 students by score</p>
+          </div>
+          <ol class="leaderboard-list" id="leaderboardList"></ol>
+        </div>
+      </aside>
+    </main>
+
+    <script src="/buzzmind-api.js"></script>
+    <script src="/buzzmind-session.js"></script>
+    <script src="/shared/avatar.js"></script>
+    <script src="/Quiz/quiz-data.js"></script>
+    <script src="/Quiz/session-loader.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/Quiz/professor-quiz.js"></script>
+  </body>
+</html>

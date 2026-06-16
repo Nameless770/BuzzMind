@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BuzzMind - Manage Class</title>
+    <link rel="stylesheet" href="/shared/dashboard.css" />
+    <link rel="stylesheet" href="/Prof page/classes_design/classes_style.css" />
+    <script src="/buzzmind-api.js"></script>
+    <script src="/buzzmind-session.js"></script>
+    <script src="/shared/dashboard.js" defer></script>
+    <script src="/Prof page/classes_design/classes_script.js" defer></script>
+  </head>
+  <body>
+    <div class="dash-shell manage-shell">
+      <%- include('../../partials/prof-sidebar', { active: 'classes' }) %>
+
+      <main class="dash-main">
+        <header class="dash-top manage-top">
+          <div>
+            <a class="manage-crumb" href="/Prof page/Classes page/professor2.html">
+              <span class="ic" data-icon="arrow-left"></span>
+              Classes
+            </a>
+            <h1 class="current-class-name">Classroom Management</h1>
+            <div class="sub">
+              Manage students, attach draft quizzes, and open live sessions from one place.
+            </div>
+          </div>
+
+          <div class="right">
+            <a class="btn btn-ghost" href="/Prof page/QuizBuild/QuizBuild.html">
+              <span class="ic" data-icon="list-checks"></span>
+              Quiz Builder
+            </a>
+            <a class="btn" href="/Prof page/Settings page/SettingsP.html">
+              <span class="ic" data-icon="settings"></span>
+              Settings
+            </a>
+          </div>
+        </header>
+
+        <div class="dash-content manage-content">
+          <section class="class-banner">
+            <div class="banner-text">
+              <span class="section-kicker">CURRENT CLASS</span>
+              <h2 id="class-banner-title">Classroom snapshot</h2>
+              <p id="class-banner-copy">Loading classroom details...</p>
+              <div class="banner-actions">
+                <a class="btn btn-primary" href="/Prof page/QuizBuild/QuizBuild.html">
+                  <span class="ic" data-icon="plus"></span>
+                  Build Quiz
+                </a>
+                <a class="btn" href="/Prof page/Classes page/professor2.html">
+                  <span class="ic" data-icon="book-open"></span>
+                  All Classes
+                </a>
+              </div>
+            </div>
+          </section>
+
+          <section class="quiz-launch-card" aria-labelledby="draft-launch-title">
+            <div class="quiz-launch-copy">
+              <div class="launch-icon">
+                <span class="ic" data-icon="play"></span>
+              </div>
+              <div>
+                <span class="section-kicker">LIVE QUIZ</span>
+                <h2 id="draft-launch-title">Attach a draft and launch</h2>
+                <p>
+                  Pick a saved draft, attach it to this class, and open a live
+                  lobby students can join with a game pin.
+                </p>
+              </div>
+            </div>
+
+            <div class="draft-launch-controls">
+              <label for="draft-select">Draft quiz</label>
+              <div class="draft-select-row">
+                <select id="draft-select" class="draft-select">
+                  <option value="">Loading drafts...</option>
+                </select>
+                <button class="btn-refresh-drafts" id="refresh-drafts-btn" type="button">
+                  <span class="ic" data-icon="refresh"></span>
+                  Refresh
+                </button>
+              </div>
+              <label for="draft-time">Quiz time (minutes)</label>
+              <input
+                id="draft-time"
+                class="draft-select"
+                type="number"
+                min="5"
+                max="120"
+                value="20" />
+              <button class="btn-launch-draft" id="launch-draft-btn" type="button">
+                <span class="ic" data-icon="play"></span>
+                Attach and Launch
+              </button>
+              <p class="draft-launch-msg" id="draft-launch-msg"></p>
+            </div>
+
+            <div class="launch-result" id="live-session-card" hidden>
+              <div>
+                <span class="launch-result-label">GAME PIN</span>
+                <strong id="launched-pin">---</strong>
+              </div>
+              <a class="btn-open-lobby" id="open-prof-lobby" href="#">
+                Open lobby
+                <span class="ic" data-icon="chevron-right"></span>
+              </a>
+            </div>
+          </section>
+
+          <section class="roster-panel">
+            <div class="roster-panel-head">
+              <div>
+                <span class="section-kicker">ROSTER</span>
+                <h2 class="roster-title">
+                  Student Roster <span class="enrolled-badge">-- Enrolled</span>
+                </h2>
+              </div>
+              <button class="btn-add-student" id="add-student-btn" type="button">
+                <span class="ic" data-icon="plus"></span>
+                Add Student
+              </button>
+            </div>
+
+            <div class="roster-toolbar">
+              <div class="search roster-search">
+                <span class="ic" data-icon="search"></span>
+                <input
+                  class="search-input"
+                  type="text"
+                  id="search-input"
+                  placeholder="Search student by name or email..." />
+              </div>
+            </div>
+
+            <div class="roster-card">
+              <table class="roster-table dtable">
+                <thead>
+                  <tr>
+                    <th>Student information</th>
+                    <th>Average score</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody id="roster-body"></tbody>
+              </table>
+
+              <div class="roster-footer">
+                <span class="roster-count" id="roster-count">
+                  Loading roster...
+                </span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div id="add-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h2>Add New Student</h2>
+        <p class="modal-sub">Invite a student to this class roster.</p>
+
+        <label class="field-label" for="new-name">Full name</label>
+        <input
+          type="text"
+          id="new-name"
+          placeholder="Full name"
+          class="modal-input" />
+        <p id="add-name-error" class="modal-error"></p>
+
+        <label class="field-label" for="new-email">Email</label>
+        <input
+          type="text"
+          id="new-email"
+          placeholder="Email"
+          class="modal-input" />
+        <p id="add-email-error" class="modal-error"></p>
+
+        <div class="modal-actions">
+          <button class="btn-confirm" id="confirm-add" type="button">Add Student</button>
+          <button class="btn-cancel-modal" id="cancel-add" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="edit-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h2>Edit Student</h2>
+        <p class="modal-sub">Update the selected roster record.</p>
+
+        <label class="field-label" for="edit-name">Full name</label>
+        <input
+          type="text"
+          id="edit-name"
+          placeholder="Full name"
+          class="modal-input" />
+        <p id="edit-name-error" class="modal-error"></p>
+
+        <label class="field-label" for="edit-email">Email</label>
+        <input
+          type="text"
+          id="edit-email"
+          placeholder="Email"
+          class="modal-input" />
+        <p id="edit-email-error" class="modal-error"></p>
+
+        <div class="modal-actions">
+          <button class="btn-confirm" id="confirm-edit" type="button">Save Changes</button>
+          <button class="btn-cancel-modal" id="cancel-edit" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

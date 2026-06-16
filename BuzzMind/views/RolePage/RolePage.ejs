@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Choose Your Role - BuzzMind</title>
+    <link rel="stylesheet" href="/RolePage/RolePage.css" />
+  </head>
+
+  <body>
+    <!-- MAIN CONTENT -->
+    <div id="header">
+      <h1>
+        <b>Pick Your <i id="pw">Power!</i></b>
+      </h1>
+      <p>
+        Ready to start the game? Choose the role that fits your mission today.
+      </p>
+    </div>
+
+    <% if (typeof error !== 'undefined') { %>
+      <div class="role-error" style="color: #c0392b; text-align: center; margin-bottom: 12px;">
+        Please choose a valid role before continuing.
+      </div>
+    <% } %>
+
+    <form
+      id="role-form"
+      action="/set-role"
+      method="post"
+      onsubmit="return handleContinue();">
+      <div class="roles-grid">
+        <label class="role-card" data-role="professor" for="role-professor" onclick="selectRole(this)">
+          <input type="radio" name="role" id="role-professor" value="professor" hidden />
+          <div class="role-icon professor-icon"></div>
+          <h2>Professor</h2>
+          <p>Create and manage quizzes, track student progress</p>
+        </label>
+
+        <label class="role-card" data-role="student" for="role-student" onclick="selectRole(this)">
+          <input type="radio" name="role" id="role-student" value="student" hidden />
+          <div class="role-icon student-icon"></div>
+          <h2>Student</h2>
+          <p>Take quizzes, view results, learn and grow</p>
+        </label>
+      </div>
+
+      <div class="cta-area">
+        <button id="continue-btn" type="submit">
+          Continue Journey <span class="lock-icon" id="lock-icon"></span>
+        </button>
+        <p class="cta-hint" id="cta-hint">
+          CHOOSE A ROLE TO UNLOCK THE NEXT LEVEL
+        </p>
+      </div>
+    </form>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="footer">
+      <div class="footer-brand">
+        <a href="#" class="logo footer-logo">BuzzMind</a>
+        <p>
+          Empowering learners and educators through kinetic, high-energy play.
+        </p>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 BuzzMind. All rights reserved.</span>
+      </div>
+    </footer>
+
+    <script src="/RolePage/RolePage.js"></script>
+    <script src="/shared/i18n.js"></script>
+  </body>
+</html>

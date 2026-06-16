@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Discover</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/student-sidebar', { active: 'home' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>Discover</h1>
+        <div class="sub">Join a live game and play with your class.</div>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="join-hero">
+        <h2 class="join-title">The fun way to <em>learn</em> and <em>play!</em></h2>
+        <p class="join-sub">Host a game, challenge your friends, and master any subject.</p>
+
+        <div class="card join-card">
+          <div class="form-alert" id="joinAlert"></div>
+          <div class="field">
+            <label>Your name</label>
+            <input type="text" id="playerNameInput" placeholder="YOUR NAME" maxlength="50" autocomplete="nickname" />
+          </div>
+          <div class="field">
+            <label>Game PIN</label>
+            <input type="text" id="pinInput" placeholder="GAME PIN" maxlength="6" inputmode="numeric" />
+          </div>
+          <button class="btn btn-primary join-btn" id="joinBtn"><span class="ic" data-icon="play"></span> Join Game</button>
+          <p class="join-hint">Ask your host for the game PIN to join.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const nameInput = document.getElementById('playerNameInput');
+  const pinInput = document.getElementById('pinInput');
+  const joinBtn = document.getElementById('joinBtn');
+  const alertEl = document.getElementById('joinAlert');
+
+  function setAlert(msg) {
+    alertEl.textContent = msg || '';
+    alertEl.className = msg ? 'form-alert show error' : 'form-alert';
+  }
+
+  async function prefillName() {
+    try {
+      const me = await BuzzMindAPI.getMe();
+      if (me && me.role === 'student') {
+        const accountName = (me.username || me.name || '').trim();
+        if (accountName && !nameInput.value.trim()) nameInput.value = accountName;
+        nameInput.placeholder = 'YOUR NAME (optional if logged in)';
+      }
+    } catch (_) {
+      const saved = sessionStorage.getItem('playerName');
+      if (saved && !nameInput.value.trim()) nameInput.value = saved;
+    }
+  }
+
+  async function resolveName() {
+    const typed = nameInput.value.trim();
+    try {
+      const me = await BuzzMindAPI.getMe();
+      if (me && me.role === 'student') return typed || (me.username || me.name || '').trim();
+      return typed;
+    } catch (_) {
+      return typed || (sessionStorage.getItem('playerName') || '').trim();
+    }
+  }
+
+  async function join() {
+    const pin = pinInput.value.trim().replace(/\s/g, '');
+    if (!pin) { setAlert('Please enter a Game PIN.'); pinInput.focus(); return; }
+    if (!/^\d{6}$/.test(pin)) { setAlert('PIN must be 6 digits.'); return; }
+
+    let displayName = await resolveName();
+    if (!displayName) { setAlert('Enter your name above to join.'); nameInput.focus(); return; }
+    displayName = displayName.slice(0, 50);
+    sessionStorage.setItem('playerName', displayName);
+
+    joinBtn.disabled = true;
+    setAlert('');
+    try {
+      const session = await BuzzMindAPI.joinSession(pin, displayName);
+      sessionStorage.setItem('gameSessionId', session.sessionId);
+      sessionStorage.setItem('gamePin', pin);
+      if (session.playerId) sessionStorage.setItem('playerId', session.playerId);
+      const query = new URLSearchParams({ pin, session: session.sessionId }).toString();
+      location.href = `/Student pages/Joined Students/Joined Students.html?${query}`;
+    } catch (err) {
+      joinBtn.disabled = false;
+      setAlert(err.message || 'Invalid PIN.');
+    }
+  }
+
+  pinInput.addEventListener('input', () => { pinInput.value = pinInput.value.replace(/\D/g, ''); });
+  pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
+  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
+  joinBtn.addEventListener('click', join);
+
+  Dash.boot('home');
+  prefillName();
+})();
+</script>
+</body>
+</html>

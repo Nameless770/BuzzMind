@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Reports</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/student-sidebar', { active: 'reports' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>Performance Reports</h1>
+        <div class="sub">A deep dive into how you have done across every quiz.</div>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-ic b"><span class="ic" data-icon="list-checks"></span></div>
+          <div><div class="lbl">Quizzes taken</div><div class="num" id="sTaken">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic g"><span class="ic" data-icon="check"></span></div>
+          <div><div class="lbl">Avg. accuracy</div><div class="num g" id="sAvg">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic a"><span class="ic" data-icon="award"></span></div>
+          <div><div class="lbl">Best score</div><div class="num" id="sBest">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic"><span class="ic" data-icon="trophy"></span></div>
+          <div><div class="lbl">Total points</div><div class="num" id="sPts">—</div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <div class="row-between" style="margin-bottom:14px">
+          <h3 style="margin:0">Quiz history</h3>
+          <span class="badge b-muted" id="histCount">0 quizzes</span>
+        </div>
+        <div id="histWrap">
+          <div class="empty">Loading your reports…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+
+  function accBadge(a) {
+    const cls = a >= 80 ? 'b-green' : a >= 50 ? 'b-amber' : 'b-red';
+    return `<span class="badge ${cls}">${a}%</span>`;
+  }
+
+  function render(list) {
+    const taken = list.length;
+    const avg = taken ? Math.round(list.reduce((s, q) => s + (q.accuracy || 0), 0) / taken) : 0;
+    const best = list.reduce((m, q) => Math.max(m, Number(q.score || 0)), 0);
+    const pts = list.reduce((s, q) => s + Number(q.score || 0), 0);
+    document.getElementById('sTaken').textContent = taken;
+    document.getElementById('sAvg').textContent = avg + '%';
+    document.getElementById('sBest').textContent = best.toLocaleString();
+    document.getElementById('sPts').textContent = pts.toLocaleString();
+    document.getElementById('histCount').textContent = `${taken} quiz${taken === 1 ? '' : 'zes'}`;
+
+    const wrap = document.getElementById('histWrap');
+    if (!taken) {
+      wrap.innerHTML = `<div class="empty"><div class="big">${Dash.icon('bar-chart')}</div>No quiz results yet. Play a game from Discover to see your performance here.</div>`;
+      return;
+    }
+    const rows = list
+      .map(
+        (q) => `<tr>
+          <td><strong>${E(q.quizTitle || 'Untitled quiz')}</strong></td>
+          <td>${q.playedAt ? Dash.fmtDate(q.playedAt) : '—'}</td>
+          <td>${q.totalQuestions || '—'}</td>
+          <td>${accBadge(q.accuracy ?? 0)}</td>
+          <td><strong>${Number(q.score || 0).toLocaleString()}</strong></td>
+        </tr>`,
+      )
+      .join('');
+    wrap.innerHTML = `<table class="dtable">
+      <thead><tr><th>Quiz</th><th>Date</th><th>Questions</th><th>Accuracy</th><th>Score</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  async function load() {
+    try {
+      const res = await BuzzMindAPI.getReports();
+      render(Array.isArray(res) ? res : []);
+    } catch (err) {
+      document.getElementById('histWrap').innerHTML = `<div class="empty">${E(err.message || 'Could not load reports.')}</div>`;
+    }
+  }
+
+  Dash.boot('reports');
+  load();
+})();
+</script>
+</body>
+</html>

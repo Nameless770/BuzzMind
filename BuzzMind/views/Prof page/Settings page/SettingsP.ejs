@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Settings</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/prof-sidebar', { active: 'settings' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>Settings</h1>
+        <div class="sub">Manage your account and security.</div>
+      </div>
+    </div>
+
+    <%- include('../../partials/settings-body') %>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script src="/shared/settings.js"></script>
+</body>
+</html>

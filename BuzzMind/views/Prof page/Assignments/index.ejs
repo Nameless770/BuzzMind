@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Assignments</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/prof-sidebar', { active: 'assignments' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>Assignments</h1>
+        <div class="sub">Post text, Word or PDF assignments and grade what comes back.</div>
+      </div>
+      <div class="right">
+        <button class="btn btn-primary" id="newBtn">+ New Assignment</button>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div id="list" class="grid"><div class="empty">Loading assignments…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Create / Edit modal -->
+<div class="modal-back" id="formModal">
+  <div class="modal">
+    <h2 id="formTitle">New Assignment</h2>
+    <div class="modal-sub">Students in the selected class will see this immediately.</div>
+    <div class="form-alert" id="formAlert"></div>
+    <form id="assignForm">
+      <input type="hidden" id="aId" />
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="aTitle" placeholder="Essay: The French Revolution" required />
+      </div>
+      <div class="field">
+        <label>Instructions</label>
+        <textarea id="aDesc" rows="4" placeholder="What should students do?"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Class</label>
+          <select id="aClass"></select>
+        </div>
+        <div class="field">
+          <label>Submission type</label>
+          <select id="aType">
+            <option value="both">Text or file</option>
+            <option value="text">Text only</option>
+            <option value="file">File only</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Points</label>
+          <input type="number" id="aPoints" value="100" min="1" max="1000" />
+        </div>
+        <div class="field">
+          <label>Due date <span class="hint">(optional)</span></label>
+          <input type="datetime-local" id="aDue" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Attachments <span class="hint">(brief, rubric, PDF/Word — optional)</span></label>
+        <div class="file-picker">
+          <input type="file" id="aFiles" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,image/*" />
+          <label class="file-picker-btn" for="aFiles">
+            <span class="ic" data-icon="paperclip"></span>
+            Add files
+          </label>
+          <span class="file-picker-text" data-file-label data-empty="No new files selected">No new files selected</span>
+        </div>
+        <div id="attachChips" class="chips" style="margin-top:10px"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Create assignment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Submissions modal -->
+<div class="modal-back" id="subsModal">
+  <div class="modal lg">
+    <h2 id="subsTitle">Submissions</h2>
+    <div class="modal-sub" id="subsSub"></div>
+    <div id="subsBody" style="max-height:60vh;overflow:auto"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="subsClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+  let assignments = [];
+  let classes = [];
+  let pendingAttachments = [];
+
+  function toLocalInput(d) {
+    if (!d) return '';
+    const dt = new Date(d);
+    const off = dt.getTimezoneOffset();
+    return new Date(dt.getTime() - off * 60000).toISOString().slice(0, 16);
+  }
+
+  function typeLabel(t) {
+    return t === 'text' ? 'Text only' : t === 'file' ? 'File only' : 'Text or file';
+  }
+
+  function cardHtml(a) {
+    const due = a.dueDate ? Dash.fmtDateTime(a.dueDate) : 'No due date';
+    const overdue = a.dueDate && new Date(a.dueDate) < new Date();
+    const atts = (a.attachments || []).length
+      ? `<div class="meta" style="font-size:12px"><span class="ic">${Dash.icon('paperclip')}</span> ${a.attachments.length} attachment${a.attachments.length === 1 ? '' : 's'}</div>`
+      : '';
+    return `<div class="card" data-id="${a.id}">
+      <div style="display:flex;justify-content:space-between;gap:10px">
+        <h3 style="min-width:0;overflow:hidden;text-overflow:ellipsis">${E(a.title)}</h3>
+        <span class="badge role-professor">${a.points} pts</span>
+      </div>
+      <div class="meta">${E(a.className || 'Class')} · ${typeLabel(a.type)}</div>
+      ${a.description ? `<div class="muted" style="font-size:13px;max-height:48px;overflow:hidden">${E(a.description)}</div>` : ''}
+      <div class="meta" style="font-size:12px;color:${overdue ? 'var(--red)' : 'var(--muted)'}"><span class="ic">${Dash.icon('calendar')}</span> ${due}</div>
+      ${atts}
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <span class="badge role-student">${a.submissionCount || 0} submitted</span>
+        <span class="badge" style="background:var(--bg-2);color:var(--muted)">${a.gradedCount || 0} graded</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" data-act="subs">Submissions</button>
+        <button class="btn btn-sm" data-act="edit">Edit</button>
+        <button class="btn btn-sm btn-danger" data-act="del">Delete</button>
+      </div>
+    </div>`;
+  }
+
+  function render() {
+    const el = document.getElementById('list');
+    if (!assignments.length) {
+      el.innerHTML = `<div class="empty"><div class="big">${Dash.icon('file-text')}</div>No assignments yet. Create your first one.</div>`;
+      return;
+    }
+    el.innerHTML = assignments.map(cardHtml).join('');
+    el.querySelectorAll('.card[data-id]').forEach((card) => {
+      const a = assignments.find((x) => x.id === card.dataset.id);
+      card.querySelector('[data-act="subs"]').addEventListener('click', () => openSubs(a));
+      card.querySelector('[data-act="edit"]').addEventListener('click', () => openEdit(a));
+      card.querySelector('[data-act="del"]').addEventListener('click', () => removeAssignment(a));
+    });
+  }
+
+  function fillClassOptions() {
+    const sel = document.getElementById('aClass');
+    if (!classes.length) {
+      sel.innerHTML = `<option value="">No classes — create one first</option>`;
+      return;
+    }
+    sel.innerHTML = classes
+      .map((c) => `<option value="${c.id || c._id}">${E(c.name)}</option>`)
+      .join('');
+  }
+
+  function renderChips() {
+    const el = document.getElementById('attachChips');
+    el.innerHTML = pendingAttachments
+      .map((a, i) => `<span class="chip" style="cursor:default">${E(a.name)} <span data-rm="${i}" style="cursor:pointer;color:#ff7a7a">&times;</span></span>`)
+      .join('');
+    el.querySelectorAll('[data-rm]').forEach((x) => {
+      x.addEventListener('click', () => {
+        pendingAttachments.splice(Number(x.dataset.rm), 1);
+        renderChips();
+      });
+    });
+  }
+
+  function setAlert(msg, type) {
+    const a = document.getElementById('formAlert');
+    a.textContent = msg || '';
+    a.className = msg ? `form-alert show ${type || 'error'}` : 'form-alert';
+  }
+
+  function openCreate() {
+    document.getElementById('assignForm').reset();
+    document.getElementById('aId').value = '';
+    document.getElementById('aPoints').value = '100';
+    Dash.resetFilePicker('aFiles');
+    pendingAttachments = [];
+    renderChips();
+    fillClassOptions();
+    document.getElementById('formTitle').textContent = 'New Assignment';
+    document.getElementById('saveBtn').textContent = 'Create assignment';
+    setAlert('');
+    Dash.openModal('formModal');
+    document.getElementById('aTitle').focus();
+  }
+
+  function openEdit(a) {
+    document.getElementById('assignForm').reset();
+    Dash.resetFilePicker('aFiles');
+    fillClassOptions();
+    document.getElementById('aId').value = a.id;
+    document.getElementById('aTitle').value = a.title;
+    document.getElementById('aDesc').value = a.description || '';
+    document.getElementById('aClass').value = a.classId;
+    document.getElementById('aType').value = a.type || 'both';
+    document.getElementById('aPoints').value = a.points || 100;
+    document.getElementById('aDue').value = toLocalInput(a.dueDate);
+    document.getElementById('aClass').disabled = true;
+    pendingAttachments = (a.attachments || []).map((x) => ({ url: x.url, name: x.name, kind: x.kind }));
+    renderChips();
+    document.getElementById('formTitle').textContent = 'Edit Assignment';
+    document.getElementById('saveBtn').textContent = 'Save changes';
+    setAlert('');
+    Dash.openModal('formModal');
+  }
+
+  async function onFilesPicked(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setAlert('Uploading…', 'success');
+    for (const f of files) {
+      try {
+        const meta = await BuzzMindAPI.uploadFile(f);
+        pendingAttachments.push({ url: meta.url, name: meta.name, kind: meta.kind });
+      } catch (err) {
+        Dash.toast(err.message || `Could not upload ${f.name}`, 'error');
+      }
+    }
+    Dash.resetFilePicker(e.target);
+    setAlert('');
+    renderChips();
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    const id = document.getElementById('aId').value;
+    const body = {
+      title: document.getElementById('aTitle').value.trim(),
+      description: document.getElementById('aDesc').value.trim(),
+      classId: document.getElementById('aClass').value,
+      type: document.getElementById('aType').value,
+      points: Number(document.getElementById('aPoints').value) || 100,
+      dueDate: document.getElementById('aDue').value || null,
+      attachments: pendingAttachments,
+    };
+    if (!body.title) { setAlert('Title is required.'); return; }
+    if (!id && !body.classId) { setAlert('Pick a class for this assignment.'); return; }
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    try {
+      if (id) {
+        await BuzzMindAPI.updateAssignment(id, body);
+        Dash.toast('Assignment updated.');
+      } else {
+        await BuzzMindAPI.createAssignment(body);
+        Dash.toast('Assignment posted.');
+      }
+      document.getElementById('aClass').disabled = false;
+      Dash.closeModal('formModal');
+      await load();
+    } catch (err) {
+      setAlert(err.message || 'Could not save assignment.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function removeAssignment(a) {
+    try {
+      await BuzzMindAPI.deleteAssignment(a.id);
+      assignments = assignments.filter((x) => x.id !== a.id);
+      render();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function fileLinks(files) {
+    if (!files || !files.length) return '';
+    return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${files
+      .map((f) => `<a href="${E(f.url)}" target="_blank" class="badge b-blue" style="text-decoration:none"><span class="ic">${Dash.icon('paperclip')}</span> ${E(f.name)}</a>`)
+      .join('')}</div>`;
+  }
+
+  function subRow(a, s) {
+    const name = s.student ? s.student.name : 'Unknown';
+    const lateTag = s.late ? `<span class="badge b-red">late</span>` : '';
+    const gradedTag = s.status === 'graded'
+      ? `<span class="badge role-student">${s.grade}/${a.points}</span>`
+      : `<span class="badge" style="background:rgba(109,94,252,.18);color:var(--brand-2)">awaiting grade</span>`;
+    return `<div class="panel" data-sid="${s.id}" style="margin-bottom:12px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        ${Dash.avatarHTML(name, s.student?.id || s.id, s.student?.avatarUrl)}
+        <div style="flex:1;min-width:0">
+          <strong>${E(name)}</strong>
+          <div class="muted" style="font-size:12px">${s.student ? E(s.student.email) : ''} · ${Dash.fmtDateTime(s.submittedAt)}</div>
+        </div>
+        ${lateTag} ${gradedTag}
+      </div>
+      ${s.text ? `<div style="white-space:pre-wrap;margin-top:10px;line-height:1.5;background:var(--bg-2);padding:10px;border-radius:10px">${E(s.text)}</div>` : ''}
+      ${fileLinks(s.files)}
+      <div class="form-row" style="margin-top:12px;align-items:flex-end">
+        <div class="field" style="max-width:120px">
+          <label>Grade /${a.points}</label>
+          <input type="number" class="g-grade" min="0" max="${a.points}" value="${s.grade != null ? s.grade : ''}" />
+        </div>
+        <div class="field">
+          <label>Feedback</label>
+          <input type="text" class="g-feedback" value="${E(s.feedback || '')}" placeholder="Optional note to the student" />
+        </div>
+        <button class="btn btn-primary g-save" type="button">Save grade</button>
+      </div>
+    </div>`;
+  }
+
+  async function openSubs(a) {
+    document.getElementById('subsTitle').textContent = `Submissions · ${a.title}`;
+    document.getElementById('subsSub').textContent = `${a.className || ''} · ${a.points} points`;
+    const body = document.getElementById('subsBody');
+    body.innerHTML = `<div class="empty">Loading…</div>`;
+    Dash.openModal('subsModal');
+    try {
+      const subs = await BuzzMindAPI.getSubmissions(a.id);
+      if (!subs.length) {
+        body.innerHTML = `<div class="empty">No submissions yet.</div>`;
+        return;
+      }
+      body.innerHTML = subs.map((s) => subRow(a, s)).join('');
+      body.querySelectorAll('.panel[data-sid]').forEach((row) => {
+        row.querySelector('.g-save').addEventListener('click', async () => {
+          const grade = row.querySelector('.g-grade').value;
+          const feedback = row.querySelector('.g-feedback').value;
+          if (grade === '') { Dash.toast('Enter a grade first', 'error'); return; }
+          try {
+            await BuzzMindAPI.gradeSubmission(a.id, row.dataset.sid, { grade: Number(grade), feedback });
+            Dash.toast('Grade saved.');
+            await load();
+            openSubs(assignments.find((x) => x.id === a.id) || a);
+          } catch (err) {
+            Dash.toast(err.message || 'Could not save grade', 'error');
+          }
+        });
+      });
+    } catch (err) {
+      body.innerHTML = `<div class="empty">${E(err.message || 'Failed to load submissions.')}</div>`;
+    }
+  }
+
+  async function load() {
+    try {
+      [assignments, classes] = await Promise.all([
+        BuzzMindAPI.getAssignments(),
+        BuzzMindAPI.getClasses(),
+      ]);
+      render();
+    } catch (err) {
+      Dash.toast(err.message || 'Failed to load', 'error');
+      document.getElementById('list').innerHTML = `<div class="empty">Could not load assignments.</div>`;
+    }
+  }
+
+  document.getElementById('newBtn').addEventListener('click', openCreate);
+  document.getElementById('cancelBtn').addEventListener('click', () => {
+    document.getElementById('aClass').disabled = false;
+    Dash.closeModal('formModal');
+  });
+  document.getElementById('assignForm').addEventListener('submit', submit);
+  document.getElementById('aFiles').addEventListener('change', onFilesPicked);
+  document.getElementById('subsClose').addEventListener('click', () => Dash.closeModal('subsModal'));
+  document.getElementById('formModal').addEventListener('click', (e) => {
+    if (e.target.id === 'formModal') { document.getElementById('aClass').disabled = false; Dash.closeModal('formModal'); }
+  });
+  document.getElementById('subsModal').addEventListener('click', (e) => {
+    if (e.target.id === 'subsModal') Dash.closeModal('subsModal');
+  });
+
+  Dash.boot();
+  load();
+})();
+</script>
+</body>
+</html>

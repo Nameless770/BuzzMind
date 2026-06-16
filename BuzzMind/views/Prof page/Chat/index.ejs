@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Messages</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/prof-sidebar', { active: 'chat' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>Messages</h1>
+        <div class="sub">Chat with the students in your classes.</div>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="chat-wrap">
+        <div class="chat-list" id="contactList">
+          <div class="empty" style="padding:24px">Loading…</div>
+        </div>
+        <div class="chat-main">
+          <div class="chat-head" id="chatHead">Select a conversation</div>
+          <div class="chat-body" id="chatBody">
+            <div class="empty" style="margin:auto">Pick someone on the left to start chatting.</div>
+          </div>
+          <form class="chat-input" id="chatForm" style="display:none">
+            <input type="text" id="chatText" placeholder="Type a message…" autocomplete="off" />
+            <button class="btn btn-primary" type="submit">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script src="/shared/chat.js"></script>
+</body>
+</html>

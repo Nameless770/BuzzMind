@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · My Classes</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/prof-sidebar', { active: 'classes' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>My Classrooms</h1>
+        <div class="sub">Manage your currently running semesters and curricula.</div>
+      </div>
+      <div class="right">
+        <div class="search">
+          <span class="ic" data-icon="search"></span>
+          <input type="text" id="searchInput" placeholder="Search classes..." />
+        </div>
+        <a href="/Prof page/QuizBuild/QuizBuild.html" style="text-decoration:none"><button class="btn"><span class="ic" data-icon="list-checks"></span> Create Quiz</button></a>
+        <button class="btn btn-primary" id="addBtn"><span class="ic" data-icon="plus"></span> New Class</button>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-ic b"><span class="ic" data-icon="book-open"></span></div>
+          <div><div class="lbl">Active classes</div><div class="num" id="sClasses">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic g"><span class="ic" data-icon="users"></span></div>
+          <div><div class="lbl">Total students</div><div class="num" id="sStudents">—</div></div>
+        </div>
+      </div>
+
+      <div class="grid" id="cgrid"><div class="empty">Loading classes…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- New class modal -->
+<div class="modal-back" id="classModal">
+  <div class="modal">
+    <h2>Create Class</h2>
+    <div class="modal-sub">Add a new classroom to your dashboard.</div>
+    <div class="form-alert" id="cmAlert"></div>
+    <form id="classForm">
+      <div class="field">
+        <label>Class name</label>
+        <input type="text" id="cmName" placeholder="Advanced Physics" required />
+      </div>
+      <div class="field">
+        <label>Schedule</label>
+        <input type="text" id="cmSchedule" placeholder="MWF · 10:00 AM" />
+      </div>
+      <div class="field">
+        <label>Class photo <span class="hint">(optional)</span></label>
+        <div class="file-picker">
+          <input type="file" id="cmImage" accept="image/*" />
+          <label class="file-picker-btn" for="cmImage">
+            <span class="ic" data-icon="image"></span>
+            Choose photo
+          </label>
+          <span class="file-picker-text" data-file-label data-empty="No photo selected">No photo selected</span>
+        </div>
+        <div class="hint">Default clock icon is used if no photo is selected.</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cmCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="cmSave">Create Class</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+  let classes = [];
+  let query = '';
+
+  function manageHref(id) {
+    return `/Prof page/classes_design/classes_page.html?classId=${encodeURIComponent(id)}`;
+  }
+
+  function updateStats() {
+    const students = classes.reduce((n, c) => n + (c.students ? c.students.length : 0), 0);
+    document.getElementById('sClasses').textContent = classes.length;
+    document.getElementById('sStudents').textContent = students;
+  }
+
+  function classArtHtml(classItem) {
+    const imageUrl = classItem.imageUrl || '';
+    if (imageUrl) {
+      return `<div class="card-art"><img src="${E(imageUrl)}" alt="${E(classItem.name)} class photo"></div>`;
+    }
+    return `<div class="card-art card-art-icon" aria-label="Default class photo">${Dash.icon('clock')}</div>`;
+  }
+
+  async function uploadSelectedImage(input) {
+    const imageFile = input.files && input.files[0];
+    if (!imageFile) return '';
+    const meta = await BuzzMindAPI.uploadFile(imageFile);
+    return meta.url || '';
+  }
+
+  async function updateClassImage(classItem, input, btn) {
+    const imageFile = input.files && input.files[0];
+    if (!imageFile) return;
+    btn.disabled = true;
+    try {
+      const uploadedImageUrl = await uploadSelectedImage(input);
+      if (!uploadedImageUrl) return;
+      const updated = await BuzzMindAPI.updateClass(classItem._id, { imageUrl: uploadedImageUrl });
+      classItem.imageUrl = updated.imageUrl || uploadedImageUrl;
+      Dash.resetFilePicker(input);
+      render();
+      Dash.toast('Class photo updated.');
+    } catch (err) {
+      Dash.toast(err.message || 'Could not update class photo', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function cardHtml(c) {
+    const count = c.students ? c.students.length : 0;
+    return `<div class="card class-card" data-id="${c._id}">
+      ${classArtHtml(c)}
+      <div class="class-card-body">
+        <div class="class-card-head">
+          <div style="min-width:0">
+            <h3 class="class-card-title">${E(c.name)}</h3>
+            <div class="meta"><span class="ic">${Dash.icon('calendar')}</span>${E(c.schedule || 'Schedule TBD')}</div>
+          </div>
+        </div>
+        <div class="card-foot class-card-foot">
+          <span class="badge b-green">${count} student${count === 1 ? '' : 's'}</span>
+          <div class="class-card-actions">
+            <button class="btn btn-sm" data-act="image" type="button"><span class="ic">${Dash.icon('upload')}</span> Photo</button>
+            <input type="file" data-act="image-input" accept="image/*" hidden />
+            <button class="btn btn-sm btn-danger btn-icon" data-act="del" type="button" title="Delete class" aria-label="Delete ${E(c.name)}"><span class="ic">${Dash.icon('trash')}</span></button>
+            <button class="btn btn-sm btn-primary" data-act="manage" type="button"><span class="ic">${Dash.icon('settings')}</span> Manage</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function render() {
+    const grid = document.getElementById('cgrid');
+    const list = query ? classes.filter((c) => c.name.toLowerCase().includes(query)) : classes;
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty"><div class="big">${Dash.icon('book-open')}</div>No classes yet. Create one to get started.</div>`;
+      return;
+    }
+    grid.innerHTML = list.map(cardHtml).join('');
+    grid.querySelectorAll('.card').forEach((card) => {
+      const c = classes.find((x) => x._id === card.dataset.id);
+      const imageBtn = card.querySelector('[data-act="image"]');
+      const imageInput = card.querySelector('[data-act="image-input"]');
+      imageBtn.addEventListener('click', () => imageInput.click());
+      imageInput.addEventListener('change', () => updateClassImage(c, imageInput, imageBtn));
+      card.querySelector('[data-act="manage"]').addEventListener('click', () => { location.href = manageHref(c._id); });
+      card.querySelector('[data-act="del"]').addEventListener('click', () => removeClass(c));
+    });
+  }
+
+  async function load() {
+    try {
+      classes = await BuzzMindAPI.getClasses();
+      updateStats();
+      render();
+    } catch (err) {
+      Dash.toast(err.message || 'Failed to load classes', 'error');
+      document.getElementById('cgrid').innerHTML = `<div class="empty">Could not load classes.</div>`;
+    }
+  }
+
+  function setAlert(msg) {
+    const a = document.getElementById('cmAlert');
+    a.textContent = msg || '';
+    a.className = msg ? 'form-alert show error' : 'form-alert';
+  }
+
+  function openCreate() {
+    document.getElementById('classForm').reset();
+    Dash.resetFilePicker('cmImage');
+    setAlert('');
+    Dash.openModal('classModal');
+    document.getElementById('cmName').focus();
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    const body = {
+      name: document.getElementById('cmName').value.trim(),
+      schedule: document.getElementById('cmSchedule').value.trim(),
+    };
+    if (!body.name) { setAlert('Class name is required.'); return; }
+    const btn = document.getElementById('cmSave');
+    btn.disabled = true;
+    try {
+      const uploadedImageUrl = await uploadSelectedImage(document.getElementById('cmImage'));
+      if (uploadedImageUrl) body.imageUrl = uploadedImageUrl;
+      await BuzzMindAPI.createClass(body);
+      Dash.closeModal('classModal');
+      Dash.toast('Class created.');
+      await load();
+    } catch (err) {
+      setAlert(err.message || 'Could not create class.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function removeClass(c) {
+    try {
+      await BuzzMindAPI.deleteClass(c._id);
+      classes = classes.filter((x) => x._id !== c._id);
+      updateStats();
+      render();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  document.getElementById('addBtn').addEventListener('click', openCreate);
+  document.getElementById('cmCancel').addEventListener('click', () => Dash.closeModal('classModal'));
+  document.getElementById('classForm').addEventListener('submit', submit);
+  document.getElementById('classModal').addEventListener('click', (e) => {
+    if (e.target.id === 'classModal') Dash.closeModal('classModal');
+  });
+  document.getElementById('searchInput').addEventListener('input', function () {
+    query = this.value.trim().toLowerCase();
+    render();
+  });
+
+  Dash.boot();
+  load();
+})();
+</script>
+</body>
+</html>

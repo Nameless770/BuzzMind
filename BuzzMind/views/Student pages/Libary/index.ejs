@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Library</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/student-sidebar', { active: 'library' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>Library</h1>
+        <div class="sub">Every quiz you have played, in one collection.</div>
+      </div>
+      <div class="right">
+        <div class="search">
+          <span class="ic" data-icon="search"></span>
+          <input type="text" id="quizSearch" placeholder="Search your quizzes..." />
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-ic b"><span class="ic" data-icon="book-open"></span></div>
+          <div><div class="lbl">Quizzes played</div><div class="num" id="sCount">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic g"><span class="ic" data-icon="check"></span></div>
+          <div><div class="lbl">Avg. accuracy</div><div class="num g" id="sAcc">—</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ic a"><span class="ic" data-icon="trophy"></span></div>
+          <div><div class="lbl">Total points</div><div class="num" id="sPts">—</div></div>
+        </div>
+      </div>
+
+      <div id="showMoreRow" class="student-show-more-row library-show-more-row">
+        <button type="button" class="btn btn-sm student-show-more-btn" id="showMoreBtn">
+          <span class="ic" data-icon="chevron-right"></span>
+          Show more
+        </button>
+      </div>
+      <div class="grid" id="quizGrid"><div class="empty">Loading your quizzes…</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+  const INITIAL_VISIBLE = 3;
+  let quizzes = [];
+  let query = '';
+  let showAll = false;
+
+  function accColor(a) {
+    if (a >= 80) return 'b-green';
+    if (a >= 50) return 'b-amber';
+    return 'b-red';
+  }
+
+  function updateStats() {
+    const n = quizzes.length;
+    const avg = n ? Math.round(quizzes.reduce((s, q) => s + (q.accuracy || 0), 0) / n) : 0;
+    const pts = quizzes.reduce((s, q) => s + Number(q.score || 0), 0);
+    document.getElementById('sCount').textContent = n;
+    document.getElementById('sAcc').textContent = avg + '%';
+    document.getElementById('sPts').textContent = pts.toLocaleString();
+  }
+
+  function cardHtml(q, i) {
+    const title = q.quizTitle || 'Untitled quiz';
+    const acc = q.accuracy ?? 0;
+    const cover = Dash.avatarColor(title + i);
+    return `<div class="card" style="padding:0;overflow:hidden">
+      <div style="height:70px;background:${cover};position:relative">
+        <span class="badge ${accColor(acc)}" style="position:absolute;top:12px;left:14px;background:rgba(255,255,255,.9)">PLAYED</span>
+      </div>
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+        <h3 style="margin:0">${E(title)}</h3>
+        <div class="meta" style="margin:0">${Dash.icon('calendar')} ${q.playedAt ? Dash.fmtDate(q.playedAt) : 'Not dated'}</div>
+        <div class="row-between" style="font-size:12px;color:var(--muted)">
+          <span>ACCURACY</span><span>${acc}%</span>
+        </div>
+        <div class="bar"><div class="bar-fill g" style="width:${Math.min(acc, 100)}%"></div></div>
+        <div class="card-foot" style="margin-top:4px">
+          <span class="badge b-purple">${Number(q.score || 0).toLocaleString()} pts</span>
+          ${q.totalQuestions ? `<span class="badge b-muted">${q.totalQuestions} questions</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function updateShowMore(total, showing) {
+    const row = document.getElementById('showMoreRow');
+    const btn = document.getElementById('showMoreBtn');
+    const remaining = total - showing;
+    if (!row || !btn) return;
+
+    if (remaining > 0) {
+      row.style.display = 'flex';
+      btn.innerHTML = `${Dash.icon('chevron-right')} Show more (${remaining})`;
+    } else {
+      row.style.display = 'none';
+    }
+  }
+
+  function render() {
+    const grid = document.getElementById('quizGrid');
+    const list = query
+      ? quizzes.filter((q) => (q.quizTitle || '').toLowerCase().includes(query))
+      : quizzes;
+    if (!list.length) {
+      updateShowMore(0, 0);
+      grid.innerHTML = `<div class="empty"><div class="big">${Dash.icon('inbox')}</div>${
+        quizzes.length ? 'No quizzes match your search.' : "You haven't played any quizzes yet. Join a live game from Discover."
+      }</div>`;
+      return;
+    }
+    const visible = showAll ? list : list.slice(0, INITIAL_VISIBLE);
+    grid.innerHTML = visible.map(cardHtml).join('');
+    updateShowMore(list.length, visible.length);
+  }
+
+  async function load() {
+    try {
+      const res = await BuzzMindAPI.getReports();
+      quizzes = Array.isArray(res) ? res : [];
+      updateStats();
+      render();
+    } catch (err) {
+      Dash.toast(err.message || 'Failed to load quizzes', 'error');
+      document.getElementById('quizGrid').innerHTML = `<div class="empty">Could not load your quizzes.</div>`;
+    }
+  }
+
+  document.getElementById('quizSearch').addEventListener('input', function () {
+    query = this.value.trim().toLowerCase();
+    showAll = false;
+    render();
+  });
+
+  document.getElementById('showMoreBtn').addEventListener('click', function () {
+    showAll = true;
+    render();
+  });
+
+  Dash.boot('library');
+  load();
+})();
+</script>
+</body>
+</html>

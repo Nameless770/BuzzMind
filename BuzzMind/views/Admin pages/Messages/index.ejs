@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Messages</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/admin-sidebar', { active: 'messages' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>Message Inbox</h1>
+        <div class="sub">Questions and requests sent from the contact form.</div>
+      </div>
+      <div class="right">
+        <button class="btn btn-ghost" id="refreshBtn"><span class="ic" data-icon="refresh"></span> Refresh</button>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="chips" id="statusFilter" style="margin-bottom:18px">
+        <div class="chip on" data-status="">All</div>
+        <div class="chip" data-status="unread">Unread <span class="pill" id="unreadCount" style="display:none"></span></div>
+        <div class="chip" data-status="read">Read</div>
+        <div class="chip" data-status="archived">Archived</div>
+      </div>
+
+      <div id="msgList"><div class="empty">Loading messages…</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+  let messages = [];
+  let filter = '';
+
+  function cardHtml(m) {
+    const isUnread = m.status === 'unread';
+    return `<div class="panel" data-id="${m.id}" style="margin-bottom:14px;${isUnread ? 'border-left:3px solid var(--brand)' : ''}">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div class="avatar" style="background:${Dash.avatarColor(m.id)}">${E(Dash.initials(m.name))}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <strong>${E(m.name)}</strong>
+            <span class="badge role-${E(m.role || 'guest')}">${E(m.role || 'guest')}</span>
+            ${isUnread ? '<span class="badge" style="background:rgba(109,94,252,.2);color:var(--brand-2)">new</span>' : ''}
+            <span class="muted" style="font-size:12px;margin-left:auto">${Dash.fmtDateTime(m.createdAt)}</span>
+          </div>
+          <div class="muted" style="font-size:13px;margin:2px 0 8px">
+            <a href="mailto:${E(m.email)}" style="color:var(--blue)">${E(m.email)}</a>
+          </div>
+          <div style="font-weight:600;margin-bottom:4px">${E(m.subject || 'General inquiry')}</div>
+          <div style="white-space:pre-wrap;line-height:1.5">${E(m.body)}</div>
+          <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+            ${isUnread
+              ? `<button class="btn btn-sm" data-act="read">Mark read</button>`
+              : `<button class="btn btn-sm" data-act="unread">Mark unread</button>`}
+            ${m.status !== 'archived'
+              ? `<button class="btn btn-sm" data-act="archive">Archive</button>`
+              : `<button class="btn btn-sm" data-act="read">Unarchive</button>`}
+            <a href="mailto:${E(m.email)}?subject=Re: ${encodeURIComponent(m.subject || '')}"><button class="btn btn-sm btn-primary" type="button">Reply</button></a>
+            <button class="btn btn-sm btn-danger" data-act="del">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function render() {
+    const el = document.getElementById('msgList');
+    const list = filter ? messages.filter((m) => m.status === filter) : messages;
+    if (!list.length) {
+      el.innerHTML = `<div class="empty"><div class="big">${Dash.icon('mail')}</div>No messages here.</div>`;
+      return;
+    }
+    el.innerHTML = list.map(cardHtml).join('');
+    el.querySelectorAll('.panel[data-id]').forEach((card) => {
+      const m = messages.find((x) => x.id === card.dataset.id);
+      card.querySelectorAll('[data-act]').forEach((btn) => {
+        btn.addEventListener('click', () => act(m, btn.dataset.act));
+      });
+    });
+  }
+
+  function refreshBadge() {
+    const n = messages.filter((m) => m.status === 'unread').length;
+    const badge = document.getElementById('unreadCount');
+    const nav = document.getElementById('navMsgBadge');
+    if (n > 0) {
+      badge.textContent = n; badge.style.display = '';
+      if (nav) { nav.textContent = n; nav.style.display = ''; }
+    } else {
+      badge.style.display = 'none';
+      if (nav) nav.style.display = 'none';
+    }
+  }
+
+  async function act(m, action) {
+    try {
+      if (action === 'del') {
+        await BuzzMindAPI.deleteMessage(m.id);
+        messages = messages.filter((x) => x.id !== m.id);
+      } else {
+        const status = action === 'archive' ? 'archived' : action;
+        await BuzzMindAPI.updateMessage(m.id, status);
+        m.status = status;
+      }
+      refreshBadge();
+      render();
+    } catch (err) {
+      Dash.toast(err.message || 'Action failed', 'error');
+    }
+  }
+
+  async function load() {
+    try {
+      const data = await BuzzMindAPI.getMessages();
+      messages = data.messages || [];
+      refreshBadge();
+      render();
+    } catch (err) {
+      Dash.toast(err.message || 'Failed to load messages', 'error');
+      document.getElementById('msgList').innerHTML = `<div class="empty">Could not load messages.</div>`;
+    }
+  }
+
+  document.getElementById('refreshBtn').addEventListener('click', load);
+  document.getElementById('statusFilter').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#statusFilter .chip').forEach((c) => c.classList.remove('on'));
+    chip.classList.add('on');
+    filter = chip.dataset.status;
+    render();
+  });
+
+  Dash.boot();
+  load();
+})();
+</script>
+</body>
+</html>

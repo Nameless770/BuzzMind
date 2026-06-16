@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Student Overview</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <aside class="dash-side" id="dynSidebar"></aside>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <a href="javascript:history.back()" class="muted" style="font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:5px"><span class="ic" data-icon="arrow-left"></span> Back</a>
+        <h1 id="stuName">Student Overview</h1>
+        <div class="sub" id="stuSub">Full activity history for this student.</div>
+      </div>
+      <div class="right">
+        <button class="btn btn-ghost" id="chatBtn" style="display:none"><span class="ic" data-icon="message-square"></span> Message</button>
+      </div>
+    </div>
+
+    <div class="dash-content" id="content">
+      <div class="empty">Loading student…</div>
+    </div>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+  const id = new URLSearchParams(location.search).get('id');
+
+  function statCard(label, value, cls) {
+    return `<div class="stat-card"><div class="lbl">${label}</div><div class="num ${cls || ''}">${value}</div></div>`;
+  }
+
+  function subStatus(a) {
+    if (a.missed) return `<span class="badge" style="background:rgba(255,90,90,.18);color:#ff7a7a">Missed</span>`;
+    if (!a.submission) return `<span class="badge" style="background:var(--bg-2);color:var(--muted)">Not submitted</span>`;
+    const s = a.submission;
+    if (s.status === 'graded') {
+      const pct = a.points ? Math.round((s.grade / a.points) * 100) : null;
+      return `<span class="badge role-student">Graded${pct != null ? ` · ${s.grade}/${a.points}` : ''}</span>`;
+    }
+    return `<span class="badge" style="background:rgba(109,94,252,.18);color:var(--brand-2)">Submitted${s.late ? ' · late' : ''}</span>`;
+  }
+
+  function render(d) {
+    const p = d.profile;
+    const s = d.stats;
+    document.getElementById('stuName').textContent = p.name;
+    document.getElementById('stuSub').textContent = `${p.email} · ${p.department || 'GENERAL'}`;
+
+    const chatBtn = document.getElementById('chatBtn');
+    if (window.__me && window.__me.role === 'professor') {
+      chatBtn.style.display = '';
+      chatBtn.addEventListener('click', () => { location.href = `/Prof page/Chat/index.html?to=${p.id}`; });
+    }
+
+    const classesHtml = d.classes.length
+      ? d.classes.map((c) => `<span class="chip" style="cursor:default">${E(c.name)} <span class="muted">· ${E(c.professorName)}</span></span>`).join('')
+      : '<div class="muted">Not enrolled in any class.</div>';
+
+    const aRows = d.assignments.length
+      ? d.assignments.map((a) => `<tr>
+          <td><strong>${E(a.title)}</strong></td>
+          <td class="muted">${E(a.className)}</td>
+          <td class="muted">${Dash.fmtDate(a.dueDate)}</td>
+          <td>${subStatus(a)}</td>
+          <td class="muted">${a.submission && a.submission.feedback ? E(a.submission.feedback) : '—'}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="5" class="empty">No assignments.</td></tr>`;
+
+    const qRows = d.quizResults.length
+      ? d.quizResults.map((r) => `<tr>
+          <td><strong>${E(r.quizTitle)}</strong></td>
+          <td class="muted">${r.score} / ${r.totalQuestions}</td>
+          <td><span class="badge ${r.accuracy >= 70 ? 'role-student' : ''}" style="${r.accuracy < 70 ? 'background:var(--bg-2);color:var(--muted)' : ''}">${r.accuracy}%</span></td>
+          <td class="muted">${Dash.fmtDateTime(r.playedAt)}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="4" class="empty">No quiz attempts.</td></tr>`;
+
+    document.getElementById('content').innerHTML = `
+      <div class="panel" style="display:flex;gap:16px;align-items:center">
+        ${Dash.avatarHTML(p.name, p.id, p.avatarUrl).replace('style="', 'style="width:64px;height:64px;font-size:24px;')}
+        <div>
+          <h2 style="margin:0">${E(p.name)}</h2>
+          <div class="muted">@${E(p.username)} · ${E(p.email)}</div>
+          <div class="muted" style="font-size:12px">Joined ${Dash.fmtDate(p.createdAt)}</div>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        ${statCard('Classes', s.classCount, 'b')}
+        ${statCard('Assignments', s.assignmentCount)}
+        ${statCard('Submitted', s.submittedCount, 'p')}
+        ${statCard('Graded', s.gradedCount, 'g')}
+        ${statCard('Missed deadlines', s.missedCount, 'a')}
+        ${statCard('Avg grade', s.avgGradePct == null ? '—' : s.avgGradePct + '%', 'g')}
+        ${statCard('Quizzes played', s.quizCount, 'b')}
+        ${statCard('Avg quiz accuracy', s.avgQuizAccuracy + '%', 'p')}
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Enrolled classes</h2></div>
+        <div class="chips">${classesHtml}</div>
+      </div>
+
+      <div class="panel" style="padding:0;overflow:hidden">
+        <div class="panel-head" style="padding:18px 20px 0;margin:0"><h2>Assignments &amp; deadlines</h2></div>
+        <table class="dtable">
+          <thead><tr><th>Title</th><th>Class</th><th>Due</th><th>Status</th><th>Feedback</th></tr></thead>
+          <tbody>${aRows}</tbody>
+        </table>
+      </div>
+
+      <div class="panel" style="padding:0;overflow:hidden">
+        <div class="panel-head" style="padding:18px 20px 0;margin:0"><h2>Quiz history</h2></div>
+        <table class="dtable">
+          <thead><tr><th>Quiz</th><th>Score</th><th>Accuracy</th><th>Played</th></tr></thead>
+          <tbody>${qRows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function load() {
+    if (!id) {
+      document.getElementById('content').innerHTML = `<div class="empty">No student id provided.</div>`;
+      return;
+    }
+    try {
+      const d = await BuzzMindAPI.getStudentOverview(id);
+      render(d);
+    } catch (err) {
+      document.getElementById('content').innerHTML = `<div class="empty">${E(err.message || 'Failed to load student.')}</div>`;
+    }
+  }
+
+  Dash.boot().then(load);
+})();
+</script>
+</body>
+</html>

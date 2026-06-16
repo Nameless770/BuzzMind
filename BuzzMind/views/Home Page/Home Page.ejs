@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuzzMind - Level Up Your Learning</title>
+    <link rel="stylesheet" href="Home Page.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">BuzzMind</div>
+            <nav class="nav-links" aria-label="Primary">
+                <a href="/about" class="nav-link">About</a>
+                <a href="/pricing" class="nav-link">Pricing</a>
+                <a href="/contact" class="nav-link">Contact</a>
+                <a href="/privacy" class="nav-link">Privacy</a>
+            </nav>
+            <div class="nav-actions">
+                <button type="button" class="lang-toggle" data-lang-toggle data-no-i18n aria-label="Switch language">
+                    <span class="ic"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>
+                    <span class="lt-label">العربية</span>
+                </button>
+                <% if (user) { %>
+                    <span class="nav-greet"><span class="greet-hi">Hi,</span> <span class="greet-name" data-no-i18n><%= user.Name %></span></span>
+                    <a href="<%= dashHref %>" class="btn btn-secondary">Dashboard</a>
+                    <a href="/logout" class="btn btn-primary">Logout</a>
+                <% } else { %>
+                    <a href="/login" class="btn btn-secondary">Log in</a>
+                    <a href="/register" class="btn btn-primary">Sign up</a>
+                <% } %>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">
+                <span class="hero-primary">Level Up Your</span>
+                <span class="hero-highlight">Learning!</span>
+            </h1>
+            <p class="hero-description">
+                Turn every classroom into a game. Interactive quizzes that make learning feel like winning.
+            </p>
+            <div class="hero-buttons">
+                <% if (user) { %>
+                    <a href="<%= dashHref %>" class="btn btn-create">Go to Dashboard</a>
+                <% } else { %>
+                    <a href="/register" class="btn btn-create">Sign up free</a>
+                    <a href="/login" class="btn btn-join">Log in</a>
+                <% } %>
+            </div>
+        </div>
+        <!-- Illustration removed per design request (floating shapes) -->
+        <div class="hero-illustration" aria-hidden="true"></div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="features-header">
+            <span class="features-tag">How We Play</span>
+            <h2 class="features-title">The Game Plan</h2>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon icon-quest">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                        <path d="M24 4L8 12V28C8 38 24 44 24 44C24 44 40 38 40 28V12L24 4Z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 class="feature-title">Quest Library</h3>
+                <p class="feature-description">
+                    Explore thousands of teacher-made quizzes across every subject imaginable. Your next adventure starts here.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon icon-stats">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                        <path d="M10 32V16M24 32V8M38 32V20" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h3 class="feature-title">Real-time Stats</h3>
+                <p class="feature-description">
+                    Watch progress happen live with kinetic charts. Get instant feedback and celebrate every milestone in high definition.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon icon-group">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                        <circle cx="16" cy="14" r="6" fill="currentColor"/>
+                        <circle cx="32" cy="14" r="6" fill="currentColor"/>
+                        <circle cx="24" cy="28" r="6" fill="currentColor"/>
+                        <path d="M10 24C10 24 12 32 16 34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M38 24C38 24 36 32 32 34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h3 class="feature-title">Group Power</h3>
+                <p class="feature-description">
+                    Collaborate with classmates in Squad Mode. Victory is sweeter when the whole team levels up together.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2 class="cta-title">Ready to Transform Your Classroom?</h2>
+            <p class="cta-description">Join thousands of educators and students already leveling up their learning experience.</p>
+            <div class="cta-buttons">
+                <% if (!user) { %>
+                    <a href="/register?role=student" class="btn btn-primary btn-lg">Sign up as a Student</a>
+                    <a href="/register?role=professor" class="btn btn-secondary btn-lg">Sign up as a Professor</a>
+                <% } %>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-section">
+                <h4 class="footer-logo">BuzzMind</h4>
+                <p class="footer-tagline">© 2026 BuzzMind. Level Up Your Learning!</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="Home Page.js"></script>
+    <script src="/shared/i18n.js"></script>
+</body>
+</html>

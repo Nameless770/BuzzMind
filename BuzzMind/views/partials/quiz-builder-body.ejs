@@ -1,0 +1,54 @@
+<div class="dash-main">
+  <div class="dash-top">
+    <div>
+      <h1>Quiz Builder</h1>
+      <div class="sub">Design an interactive quiz, then save it for your students.</div>
+    </div>
+    <div class="right">
+      <button class="btn" id="saveDraftBtn"><span class="ic" data-icon="save"></span> Save Draft</button>
+    </div>
+  </div>
+
+  <div class="dash-content">
+    <div class="card qb-identity">
+      <div class="field">
+        <label>Quiz title</label>
+        <input type="text" id="quizTitle" placeholder="e.g. Newton's Laws of Motion" />
+      </div>
+      <div class="field sm">
+        <label>Total quiz time (minutes)</label>
+        <input type="number" id="quizTime" min="5" max="120" value="20" />
+      </div>
+    </div>
+
+    <div class="card qb-import">
+      <div class="qb-import-info">
+        <span class="ic" data-icon="refresh"></span>
+        <div>
+          <strong>Import from Open Trivia DB</strong>
+          <div class="sub">Pull ready-made multiple-choice questions from an external question bank.</div>
+        </div>
+      </div>
+      <div class="qb-import-controls">
+        <div class="field sm">
+          <label>Questions</label>
+          <input type="number" id="trAmount" min="1" max="20" value="5" />
+        </div>
+        <div class="field sm">
+          <label>Difficulty</label>
+          <select id="trDifficulty">
+            <option value="">Any</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="importTriviaBtn"><span class="ic" data-icon="upload"></span> Import</button>
+      </div>
+    </div>
+
+    <div id="questionsContainer"></div>
+
+    <button class="btn qb-addq" id="addQuestionBtn"><span class="ic" data-icon="plus"></span> Add Question</button>
+  </div>
+</div>

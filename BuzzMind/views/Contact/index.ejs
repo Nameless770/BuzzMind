@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Contact</title>
+  <link rel="stylesheet" href="/shared/site.css" />
+</head>
+<body>
+  <%- include('../partials/site-nav', { active: 'contact' }) %>
+
+  <header class="page-hero">
+    <span class="eyebrow">Contact</span>
+    <h1>Get in <span class="grad">touch</span></h1>
+    <p class="lead">Questions, problems, or feedback? Send our admin team a message and we'll get back to you.</p>
+  </header>
+
+  <section class="section tight">
+    <div class="contact-wrap">
+      <aside class="contact-aside">
+        <h2>We'd love to hear from you</h2>
+        <p>Whether you're a professor sizing up a plan or a student who hit a snag, drop us a note. Your message goes straight to the BuzzMind admin inbox.</p>
+        <div class="ways">
+          <div class="way">
+            <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>
+            <div><h4>Send a message</h4><span>The form below reaches our admin team directly.</span></div>
+          </div>
+          <div class="way">
+            <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <div><h4>Response time</h4><span>We usually reply within one business day.</span></div>
+          </div>
+          <div class="way">
+            <span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span>
+            <div><h4>Anything goes</h4><span>Account, billing, or quiz questions are all welcome.</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="contact-panel">
+        <div class="form-alert" id="alert"></div>
+        <form id="contactForm">
+          <div class="form-row">
+            <div class="field">
+              <label>Name</label>
+              <input type="text" id="cName" placeholder="Your name" required />
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="cEmail" placeholder="you@university.edu" required />
+            </div>
+          </div>
+          <div class="field">
+            <label>Subject</label>
+            <input type="text" id="cSubject" placeholder="What is this about?" />
+          </div>
+          <div class="field">
+            <label>Message</label>
+            <textarea id="cBody" rows="6" placeholder="Tell us what you need…" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="sendBtn">Send message</button>
+          <div class="who" id="who"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <%- include('../partials/site-footer') %>
+
+  <script src="/buzzmind-api.js"></script>
+  <script>
+  (function () {
+    function escapeHTML(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function setAlert(msg, type) {
+      var a = document.getElementById('alert');
+      a.textContent = msg || '';
+      a.className = msg ? ('form-alert show ' + (type || 'error')) : 'form-alert';
+    }
+
+    async function init() {
+      try {
+        var me = await BuzzMindAPI.getMe();
+        if (me) {
+          document.getElementById('cName').value = me.name || '';
+          document.getElementById('cEmail').value = me.email || '';
+          document.getElementById('who').innerHTML =
+            'Signed in as <strong>' + escapeHTML(me.name) + '</strong> (' + escapeHTML(me.role || 'user') + ').';
+        }
+      } catch (err) {
+        document.getElementById('who').textContent = 'Not signed in? You can still send a message.';
+      }
+    }
+
+    document.getElementById('contactForm').addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var body = {
+        name: document.getElementById('cName').value.trim(),
+        email: document.getElementById('cEmail').value.trim(),
+        subject: document.getElementById('cSubject').value.trim(),
+        body: document.getElementById('cBody').value.trim(),
+      };
+      if (!body.name || !body.email || !body.body) {
+        setAlert('Name, email and message are required.');
+        return;
+      }
+      var btn = document.getElementById('sendBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      try {
+        await BuzzMindAPI.sendContact(body);
+        setAlert('Message sent! The admin team will get back to you.', 'success');
+        document.getElementById('cSubject').value = '';
+        document.getElementById('cBody').value = '';
+      } catch (err) {
+        setAlert(err.message || 'Could not send your message.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send message';
+      }
+    });
+
+    init();
+  })();
+  </script>
+</body>
+</html>

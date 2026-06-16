@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Users</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/admin-sidebar', { active: 'users' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>User Management</h1>
+        <div class="sub">Create and manage every professor, student and admin account.</div>
+      </div>
+      <div class="right">
+        <div class="search">
+          <span class="ic" data-icon="search"></span>
+          <input type="text" id="searchInput" placeholder="Search name, email, username..." />
+        </div>
+        <button class="btn btn-primary" id="addBtn"><span class="ic" data-icon="plus"></span> Add User</button>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="chips" id="roleFilter" style="margin-bottom:18px">
+        <div class="chip on" data-role="">All</div>
+        <div class="chip" data-role="student">Students</div>
+        <div class="chip" data-role="professor">Professors</div>
+        <div class="chip" data-role="admin">Admins</div>
+      </div>
+
+      <div class="panel" style="padding:0;overflow:hidden">
+        <table class="dtable">
+          <thead>
+            <tr>
+              <th>Name</th><th>Email</th><th>Username</th><th>Role</th><th>Department</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="userRows">
+            <tr><td colspan="6" class="empty">Loading users…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit modal -->
+<div class="modal-back" id="userModal">
+  <div class="modal">
+    <h2 id="modalTitle">Add User</h2>
+    <div class="modal-sub">Accounts are created instantly. Share the generated password with the user.</div>
+    <div class="form-alert" id="formAlert"></div>
+    <form id="userForm">
+      <input type="hidden" id="userId" />
+      <div class="form-row">
+        <div class="field">
+          <label>Full name</label>
+          <input type="text" id="fName" placeholder="Jane Smith" required />
+        </div>
+        <div class="field">
+          <label>Role</label>
+          <select id="fRole">
+            <option value="student">Student</option>
+            <option value="professor">Professor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="fEmail" placeholder="jane@university.edu" required />
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Username <span class="hint">(optional)</span></label>
+          <input type="text" id="fUsername" placeholder="auto-generated if blank" />
+        </div>
+        <div class="field">
+          <label>Department</label>
+          <input type="text" id="fDept" placeholder="GENERAL" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Password <span class="hint" id="pwHint">(optional — auto-generated if blank)</span></label>
+        <input type="text" id="fPassword" placeholder="leave blank to auto-generate" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Create account</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+  let users = [];
+  let roleFilter = '';
+  let query = '';
+
+  function overviewHref(u) {
+    if (u.role === 'student') return `/Admin pages/Overview/student.html?id=${u.id}`;
+    if (u.role === 'professor') return `/Admin pages/Overview/professor.html?id=${u.id}`;
+    return '';
+  }
+
+  function rowHtml(u) {
+    const href = overviewHref(u);
+    const viewBtn = href
+      ? `<a href="${href}"><button class="btn btn-sm" type="button">View</button></a>`
+      : '';
+    return `<tr data-id="${u.id}">
+      <td><div style="display:flex;gap:10px;align-items:center">
+        ${Dash.avatarHTML(u.name, u.id, u.avatarUrl)}
+        <strong>${E(u.name)}</strong></div></td>
+      <td class="muted">${E(u.email)}</td>
+      <td class="muted">${E(u.username)}</td>
+      <td><span class="badge role-${E(u.role || 'admin')}">${E(u.role || '—')}</span></td>
+      <td class="muted">${E(u.department || 'GENERAL')}</td>
+      <td><div style="display:flex;gap:6px;justify-content:flex-end">
+        ${viewBtn}
+        <button class="btn btn-sm" type="button" data-act="edit">Edit</button>
+        <button class="btn btn-sm btn-danger" type="button" data-act="del">Delete</button>
+      </div></td>
+    </tr>`;
+  }
+
+  function render() {
+    const tbody = document.getElementById('userRows');
+    const filtered = users.filter((u) => {
+      if (roleFilter && u.role !== roleFilter) return false;
+      if (!query) return true;
+      const hay = `${u.name} ${u.email} ${u.username}`.toLowerCase();
+      return hay.includes(query);
+    });
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty"><div class="big">${Dash.icon('users')}</div>No users found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtered.map(rowHtml).join('');
+    tbody.querySelectorAll('tr').forEach((tr) => {
+      const u = users.find((x) => x.id === tr.dataset.id);
+      tr.querySelector('[data-act="edit"]').addEventListener('click', () => openEdit(u));
+      tr.querySelector('[data-act="del"]').addEventListener('click', () => removeUser(u));
+    });
+  }
+
+  async function load() {
+    try {
+      users = await BuzzMindAPI.getUsers();
+      render();
+    } catch (err) {
+      Dash.toast(err.message || 'Failed to load users', 'error');
+    }
+  }
+
+  function setAlert(msg, type) {
+    const a = document.getElementById('formAlert');
+    a.textContent = msg || '';
+    a.className = msg ? `form-alert show ${type || 'error'}` : 'form-alert';
+  }
+
+  function openCreate() {
+    document.getElementById('userForm').reset();
+    document.getElementById('userId').value = '';
+    document.getElementById('modalTitle').textContent = 'Add User';
+    document.getElementById('saveBtn').textContent = 'Create account';
+    document.getElementById('pwHint').textContent = '(optional — auto-generated if blank)';
+    setAlert('');
+    Dash.openModal('userModal');
+    document.getElementById('fName').focus();
+  }
+
+  function openEdit(u) {
+    document.getElementById('userForm').reset();
+    document.getElementById('userId').value = u.id;
+    document.getElementById('fName').value = u.name;
+    document.getElementById('fEmail').value = u.email;
+    document.getElementById('fUsername').value = u.username;
+    document.getElementById('fDept').value = u.department || '';
+    document.getElementById('fRole').value = u.role || 'student';
+    document.getElementById('modalTitle').textContent = 'Edit User';
+    document.getElementById('saveBtn').textContent = 'Save changes';
+    document.getElementById('pwHint').textContent = '(leave blank to keep current)';
+    setAlert('');
+    Dash.openModal('userModal');
+  }
+
+  async function removeUser(u) {
+    try {
+      await BuzzMindAPI.deleteUser(u.id);
+      users = users.filter((x) => x.id !== u.id);
+      render();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    const id = document.getElementById('userId').value;
+    const body = {
+      name: document.getElementById('fName').value.trim(),
+      email: document.getElementById('fEmail').value.trim(),
+      username: document.getElementById('fUsername').value.trim(),
+      department: document.getElementById('fDept').value.trim(),
+      role: document.getElementById('fRole').value,
+    };
+    const pw = document.getElementById('fPassword').value.trim();
+    if (pw) body.password = pw;
+    if (!body.name || !body.email) { setAlert('Name and email are required.'); return; }
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    try {
+      if (id) {
+        await BuzzMindAPI.updateUser(id, body);
+        Dash.toast('User updated.');
+      } else {
+        const created = await BuzzMindAPI.createUser(body);
+        if (created.generatedPassword) {
+          setAlert(`Account created. Temporary password: ${created.generatedPassword}`, 'success');
+          Dash.toast('User created — password shown in the form.');
+          await load();
+          btn.disabled = false;
+          return;
+        }
+        Dash.toast('User created.');
+      }
+      Dash.closeModal('userModal');
+      await load();
+    } catch (err) {
+      setAlert(err.message || 'Could not save user.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('addBtn').addEventListener('click', openCreate);
+  document.getElementById('cancelBtn').addEventListener('click', () => Dash.closeModal('userModal'));
+  document.getElementById('userModal').addEventListener('click', (e) => {
+    if (e.target.id === 'userModal') Dash.closeModal('userModal');
+  });
+  document.getElementById('userForm').addEventListener('submit', submit);
+  document.getElementById('searchInput').addEventListener('input', function () {
+    query = this.value.trim().toLowerCase();
+    render();
+  });
+  document.getElementById('roleFilter').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#roleFilter .chip').forEach((c) => c.classList.remove('on'));
+    chip.classList.add('on');
+    roleFilter = chip.dataset.role;
+    render();
+  });
+
+  Dash.boot();
+  load();
+})();
+</script>
+</body>
+</html>

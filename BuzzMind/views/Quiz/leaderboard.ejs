@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BuzzMind - Leaderboard</title>
+    <link rel="stylesheet" href="/Quiz/style.css" />
+    <link rel="stylesheet" href="/Quiz/leaderboard.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&family=DM+Sans:wght@400;500&display=swap"
+      rel="stylesheet" />
+  </head>
+  <body>
+    <main class="lb-wrap">
+      <section class="lb-hero">
+        <p class="lb-kicker">BuzzMind quiz results</p>
+        <h1 class="lb-title">Game Over!</h1>
+        <p class="lb-subtitle">
+          Final scores are in. Check your score, celebrate the top players, and
+          jump back into BuzzMind when you are ready.
+        </p>
+      </section>
+
+      <section class="lb-grid" aria-label="Quiz results">
+        <div class="score-card" id="studentCard">
+          <div class="emoji"></div>
+          <p class="score-kicker">Your score</p>
+          <h2 id="playerNameEl">Player</h2>
+          <div class="big" id="scoreEl">0 / 0</div>
+          <p>correct answers</p>
+        </div>
+
+        <div class="lb-card">
+          <div class="lb-card-head">
+            <div>
+              <p class="lb-kicker">Standings</p>
+              <h3>Final Rankings</h3>
+            </div>
+            <span class="trophy-badge">🏆</span>
+          </div>
+          <div id="rankingsList"></div>
+        </div>
+      </section>
+
+      <a id="homeBtn" class="btn-home" href="/Student pages/Home Page/Index.html">
+        Back to Home
+      </a>
+    </main>
+    <script src="/buzzmind-api.js"></script>
+    <script src="/shared/avatar.js"></script>
+    <script src="/Quiz/leaderboard.js"></script>
+  </body>
+</html>

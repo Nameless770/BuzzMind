@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BuzzMind</title>
+    <link rel="stylesheet" href="/Login Page/Login Page.css" />
+  </head>
+
+  <body>
+    <main class="main-content">
+      <div class="card">
+        <div class="brand">BuzzMind</div>
+        <div class="toggle">
+          <button id="signup-btn" class="toggle-btn active">Sign Up</button>
+          <button id="login-btn" class="toggle-btn">Login</button>
+        </div>
+        
+        <% if (typeof error !== 'undefined' && error) { %>
+          <div id="error-msg" style="color: red; text-align: center; margin-bottom: 10px;">
+            <% if (error === 'email_exists') { %>
+              That email is already registered.
+            <% } else if (error === 'username_exists') { %>
+              That username is already taken.
+            <% } else if (error === 'user_exists') { %>
+              Email or username already exists.
+            <% } else if (error === 'user_not_found') { %>
+              No account found with that email or username.
+            <% } else if (error === 'wrong_password') { %>
+              Incorrect password.
+            <% } else if (error === 'invalid_credentials') { %>
+              Invalid email/username or password.
+            <% } else if (error === 'missing_fields') { %>
+              Please fill in all sign-up fields.
+            <% } else if (error === 'email_code_required') { %>
+              Please verify your email before creating your account.
+            <% } else if (error === 'email_code_invalid') { %>
+              Invalid email verification code.
+            <% } else if (error === 'email_code_expired') { %>
+              Email verification code expired. Please request a new one.
+            <% } else { %>
+              Something went wrong. Please try again.
+            <% } %>
+          </div>
+        <% } %>
+
+        <div id="signup-form" class="form-container">
+          <h1>Create Your Account</h1>
+          <p class="sub">Join the BuzzMind community today.</p>
+
+          <form id="signup-account-form" action="/register" method="post">
+            <% if (typeof role !== 'undefined' && role) { %>
+            <input type="hidden" name="preferredRole" value="<%= role %>" />
+            <% } %>
+            <div class="form-row">
+              <div class="field" style="margin-bottom: 0">
+                <label for="fullname">Full Name</label>
+                <input
+                  name="Name"
+                  id="fullname"
+                  type="text"
+                  placeholder="Alex Rivera" />
+                <span id="nvir" style="color: red; font-size: 0.75rem"></span>
+              </div>
+              <div class="field" style="margin-bottom: 0">
+                <label for="username">Username</label>
+                <input
+                  name="Username"
+                  id="username"
+                  type="text"
+                  placeholder="arivera_pro" />
+                <span id="unvir" style="color: red; font-size: 0.75rem"></span>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="email">Email Address</label>
+              <input
+                name="Email"
+                id="email"
+                type="email"
+                placeholder="alex@university.edu" />
+              <span id="evir" style="color: red; font-size: 0.75rem"></span>
+            </div>
+
+            <div class="field">
+              <label for="password">Password</label>
+              <input
+                name="Password"
+                id="password"
+                type="password"
+                placeholder="••••••••" />
+              <span id="pvir" style="color: red; font-size: 0.75rem"></span>
+            </div>
+
+            <button id="signup-send-code-btn" class="secondary-btn" type="button">
+              Send Email Code
+            </button>
+            <p id="signup-code-timer" class="timer-text" aria-live="polite"></p>
+
+            <div class="field code-field">
+              <label for="signup-code">Email Verification Code</label>
+              <input
+                name="signupCode"
+                id="signup-code"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="Type the code from your email" />
+              <span id="signup-code-error" class="inline-error"></span>
+            </div>
+
+            <p id="signup-status" class="reset-status" aria-live="polite"></p>
+
+            <button id="create-account-btn" class="cta-btn" type="submit">
+              Create Account
+            </button>
+          </form>
+        </div>
+
+        <div id="login-form" class="form-container" style="display: none;">
+          <h1>Login to Your Account</h1>
+          <p class="sub">Welcome back to BuzzMind.</p>
+
+          <form action="/login" method="post" onsubmit="return validateLogin();">
+            <input type="hidden" name="next" id="login-next" value="<%= typeof next !== 'undefined' ? next : '' %>" />
+            <div class="field">
+              <label for="emailOrUsername">Email or Username</label>
+              <input
+                name="emailOrUsername"
+                id="emailOrUsername"
+                type="text"
+                placeholder="alex@university.edu or arivera_pro" />
+              <span id="login-vir" style="color: red; font-size: 0.75rem"></span>
+            </div>
+
+            <div class="field">
+              <label for="login-password">Password</label>
+              <input
+                name="password"
+                id="login-password"
+                type="password"
+                placeholder="••••••••" />
+              <span id="login-pvir" style="color: red; font-size: 0.75rem"></span>
+            </div>
+
+            <button class="cta-btn" type="submit">Login</button>
+            <a class="secondary-btn" href="/Login Page/forgot-password.html">Forget Password</a>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="footer">
+      <div class="footer-brand">
+        <a href="#" class="logo footer-logo">BuzzMind</a>
+        <p>
+          Empowering learners and educators through kinetic, high-energy play.
+        </p>
+      </div>
+    </footer>
+
+    <div class="footer-bottom">
+      <span>© 2026 BuzzMind. All rights reserved.</span>
+    </div>
+
+    <script src="/Login Page/Login Page.js"></script>
+    <script src="/shared/i18n.js"></script>
+  </body>
+</html>

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuzzMind · Classes</title>
+  <link rel="stylesheet" href="/shared/dashboard.css" />
+</head>
+<body>
+<div class="dash-shell">
+  <%- include('../../partials/admin-sidebar', { active: 'classes' }) %>
+
+  <div class="dash-main">
+    <div class="dash-top">
+      <div>
+        <h1>Class Management</h1>
+        <div class="sub">Create classes, assign professors, enroll students and attach quizzes.</div>
+      </div>
+      <div class="right">
+        <button class="btn btn-primary" id="addBtn">+ New Class</button>
+      </div>
+    </div>
+
+    <div class="dash-content">
+      <div class="grid" id="classGrid">
+        <div class="empty">Loading classes…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New class modal -->
+<div class="modal-back" id="createModal">
+  <div class="modal">
+    <h2>New Class</h2>
+    <div class="modal-sub">Assign a professor who will own and teach this class.</div>
+    <div class="form-alert" id="createAlert"></div>
+    <form id="createForm">
+      <div class="field">
+        <label>Class name</label>
+        <input type="text" id="cName" placeholder="Quantum Mechanics 402" required />
+      </div>
+      <div class="field">
+        <label>Class photo <span class="hint">(optional)</span></label>
+        <div class="file-picker">
+          <input type="file" id="cImage" accept="image/*" />
+          <label class="file-picker-btn" for="cImage">
+            <span class="ic" data-icon="image"></span>
+            Choose photo
+          </label>
+          <span class="file-picker-text" data-file-label data-empty="No photo selected">No photo selected</span>
+        </div>
+        <div class="hint">Default person icon is used if no photo is selected.</div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Schedule</label>
+          <input type="text" id="cSchedule" placeholder="Mon / Thu 10:00" />
+        </div>
+        <div class="field">
+          <label>Level</label>
+          <input type="text" id="cLevel" placeholder="LEVEL 100" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Professor</label>
+        <select id="cProf"><option value="">Select a professor…</option></select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="createCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create class</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Manage class modal -->
+<div class="modal-back" id="manageModal">
+  <div class="modal lg">
+    <div class="row-between">
+      <h2 id="mName">Class</h2>
+      <button type="button" class="btn btn-sm btn-ghost" id="manageClose">Close</button>
+    </div>
+    <div class="modal-sub" id="mMeta"></div>
+
+    <div class="section-title">Class photo</div>
+    <div class="form-row">
+      <div class="field" style="margin:0">
+        <div class="file-picker compact">
+          <input type="file" id="mImage" accept="image/*" />
+          <label class="file-picker-btn" for="mImage">
+            <span class="ic" data-icon="image"></span>
+            Choose photo
+          </label>
+          <span class="file-picker-text" data-file-label data-empty="No photo selected">No photo selected</span>
+        </div>
+      </div>
+      <button type="button" class="btn" id="mUpdateImage"><span class="ic" data-icon="upload"></span> Update photo</button>
+    </div>
+
+    <div class="section-title">Professor</div>
+    <div class="form-row">
+      <div class="field" style="margin:0">
+        <select id="mProf"></select>
+      </div>
+      <button type="button" class="btn" id="mReassign">Reassign</button>
+    </div>
+
+    <div class="section-title">Students (<span id="mStudentCount">0</span>)</div>
+    <div class="form-row">
+      <div class="field" style="margin:0">
+        <input type="email" id="mStudentEmail" placeholder="student@university.edu" />
+      </div>
+      <button type="button" class="btn" id="mAddStudent">Add student</button>
+    </div>
+    <div id="mStudents" style="margin-top:12px"></div>
+
+    <div class="section-title">Attached quizzes</div>
+    <div class="form-row">
+      <div class="field" style="margin:0">
+        <select id="mQuiz"><option value="">Select a quiz to attach…</option></select>
+      </div>
+      <button type="button" class="btn" id="mAttachQuiz">Attach</button>
+    </div>
+    <div id="mQuizzes" style="margin-top:12px"></div>
+
+    <div class="section-title">Assignments</div>
+    <div id="mAssignments"></div>
+  </div>
+</div>
+
+<script src="/buzzmind-api.js"></script>
+<script src="/buzzmind-session.js"></script>
+<script src="/shared/dashboard.js"></script>
+<script>
+(function () {
+  const E = Dash.escapeHTML;
+  let classes = [];
+  let professors = [];
+  let quizzes = [];
+  let current = null;
+
+  function profOptions(selected) {
+    return ['<option value="">Unassigned</option>']
+      .concat(
+        professors.map(
+          (p) =>
+            `<option value="${p.id}" ${String(p.id) === String(selected) ? 'selected' : ''}>${E(p.name)} · ${E(p.department || 'GENERAL')}</option>`,
+        ),
+      )
+      .join('');
+  }
+
+  function classArtHtml(classItem) {
+    const imageUrl = classItem.imageUrl || '';
+    if (imageUrl) {
+      return `<div class="card-art"><img src="${E(imageUrl)}" alt="${E(classItem.name)} class photo"></div>`;
+    }
+    return `<div class="card-art card-art-icon" aria-label="Default class photo">${Dash.icon('user')}</div>`;
+  }
+
+  async function uploadSelectedImage(input) {
+    const imageFile = input.files && input.files[0];
+    if (!imageFile) return '';
+    const meta = await BuzzMindAPI.uploadFile(imageFile);
+    return meta.url || '';
+  }
+
+  function cardHtml(c) {
+    return `<div class="card" data-id="${c.id}">
+      <div class="row-between">
+        <h3>${E(c.name)}</h3>
+        <span class="badge b-muted">${E(c.level || 'LEVEL 100')}</span>
+      </div>
+      ${classArtHtml(c)}
+      <div class="meta"><span class="ic">${Dash.icon('user')}</span> ${E(c.professorName || 'Unassigned')}</div>
+      <div class="schedule-copy"><span>Schedule</span><strong>${E(c.schedule || 'Schedule TBD')}</strong></div>
+      <div class="row-between">
+        <span class="badge b-green">${c.studentCount || 0} students</span>
+      </div>
+      <div class="card-foot">
+        <button class="btn btn-sm btn-primary" data-act="manage">Manage</button>
+        <button class="btn btn-sm btn-danger" data-act="del">Delete</button>
+      </div>
+    </div>`;
+  }
+
+  function renderClasses() {
+    const grid = document.getElementById('classGrid');
+    if (!classes.length) {
+      grid.innerHTML = `<div class="empty"><div class="big">${Dash.icon('book-open')}</div>No classes yet. Create one to get started.</div>`;
+      return;
+    }
+    grid.innerHTML = classes.map(cardHtml).join('');
+    grid.querySelectorAll('.card').forEach((card) => {
+      const c = classes.find((x) => x.id === card.dataset.id);
+      card.querySelector('[data-act="manage"]').addEventListener('click', () => openManage(c.id));
+      card.querySelector('[data-act="del"]').addEventListener('click', () => removeClass(c));
+    });
+  }
+
+  async function loadAll() {
+    try {
+      [classes, professors, quizzes] = await Promise.all([
+        BuzzMindAPI.getAdminClasses(),
+        BuzzMindAPI.getProfessors(),
+        BuzzMindAPI.getAdminQuizzes(),
+      ]);
+      document.getElementById('cProf').innerHTML =
+        '<option value="">Select a professor…</option>' +
+        professors.map((p) => `<option value="${p.id}">${E(p.name)} · ${E(p.department || 'GENERAL')}</option>`).join('');
+      renderClasses();
+    } catch (err) {
+      Dash.toast(err.message || 'Failed to load classes', 'error');
+    }
+  }
+
+  // ---- create ----
+  function setCreateAlert(msg) {
+    const a = document.getElementById('createAlert');
+    a.textContent = msg || '';
+    a.className = msg ? 'form-alert show error' : 'form-alert';
+  }
+  async function submitCreate(e) {
+    e.preventDefault();
+    const body = {
+      name: document.getElementById('cName').value.trim(),
+      schedule: document.getElementById('cSchedule').value.trim(),
+      level: document.getElementById('cLevel').value.trim(),
+      professorId: document.getElementById('cProf').value,
+    };
+    if (!body.name) { setCreateAlert('Class name is required.'); return; }
+    if (!body.professorId) { setCreateAlert('Please assign a professor.'); return; }
+    try {
+      const uploadedImageUrl = await uploadSelectedImage(document.getElementById('cImage'));
+      if (uploadedImageUrl) body.imageUrl = uploadedImageUrl;
+      await BuzzMindAPI.createAdminClass(body);
+      Dash.closeModal('createModal');
+      document.getElementById('createForm').reset();
+      Dash.resetFilePicker('cImage');
+      Dash.toast('Class created.');
+      await loadAll();
+    } catch (err) {
+      setCreateAlert(err.message || 'Could not create class.');
+    }
+  }
+
+  async function removeClass(c) {
+    try {
+      await BuzzMindAPI.deleteAdminClass(c.id);
+      classes = classes.filter((x) => x.id !== c.id);
+      renderClasses();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // ---- manage ----
+  async function openManage(id) {
+    try {
+      current = await BuzzMindAPI.getAdminClass(id);
+    } catch (err) {
+      Dash.toast(err.message || 'Could not open class', 'error');
+      return;
+    }
+    document.getElementById('mName').textContent = current.name;
+    document.getElementById('mMeta').textContent = `${current.schedule || 'Schedule TBD'} · ${current.level || ''}`;
+    Dash.resetFilePicker('mImage');
+    document.getElementById('mProf').innerHTML = profOptions(current.professorId);
+    document.getElementById('mQuiz').innerHTML =
+      '<option value="">Select a quiz to attach…</option>' +
+      quizzes
+        .filter((q) => String(q.classId || '') !== String(current.id))
+        .map((q) => `<option value="${q.id}">${E(q.title)} (${q.questionCount} Q)</option>`)
+        .join('');
+    renderStudents();
+    renderQuizzes();
+    renderAssignments();
+    Dash.openModal('manageModal');
+  }
+
+  function renderStudents() {
+    const wrap = document.getElementById('mStudents');
+    document.getElementById('mStudentCount').textContent = current.students.length;
+    if (!current.students.length) {
+      wrap.innerHTML = '<div class="muted" style="font-size:13px">No students enrolled yet.</div>';
+      return;
+    }
+    wrap.innerHTML = `<div class="chips">${current.students
+      .map(
+        (s) =>
+          `<span class="chip" data-sid="${s._id}">${E(s.name)} <span class="muted">· ${E(s.email)}</span> <span class="x" data-sid="${s._id}">&times;</span></span>`,
+      )
+      .join('')}</div>`;
+    wrap.querySelectorAll('.x').forEach((x) => {
+      x.addEventListener('click', () => removeStudent(x.dataset.sid));
+    });
+  }
+
+  function renderQuizzes() {
+    const wrap = document.getElementById('mQuizzes');
+    if (!current.quizzes.length) {
+      wrap.innerHTML = '<div class="muted" style="font-size:13px">No quizzes attached.</div>';
+      return;
+    }
+    wrap.innerHTML = `<div class="chips">${current.quizzes
+      .map(
+        (q) =>
+          `<span class="chip">${E(q.title)} <span class="muted">· ${q.questionCount} Q</span> <button type="button" class="btn btn-sm btn-primary" data-launch-qid="${q.id}" title="Launch live quiz"><span class="ic">${Dash.icon('play')}</span> Launch</button> <span class="x" data-qid="${q.id}">&times;</span></span>`,
+      )
+      .join('')}</div>`;
+    wrap.querySelectorAll('[data-launch-qid]').forEach((btn) => {
+      btn.addEventListener('click', () => launchQuiz(btn.dataset.launchQid));
+    });
+    wrap.querySelectorAll('.x').forEach((x) => {
+      x.addEventListener('click', () => detachQuiz(x.dataset.qid));
+    });
+  }
+
+  function renderAssignments() {
+    const wrap = document.getElementById('mAssignments');
+    if (!current.assignments.length) {
+      wrap.innerHTML = '<div class="muted" style="font-size:13px">No assignments posted for this class.</div>';
+      return;
+    }
+    wrap.innerHTML = current.assignments
+      .map(
+        (a) =>
+          `<div class="row-between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span>${E(a.title)}</span><span class="muted" style="font-size:12px">Due ${Dash.fmtDate(a.dueDate)} · ${a.points} pts</span></div>`,
+      )
+      .join('');
+  }
+
+  async function reassign() {
+    const professorId = document.getElementById('mProf').value;
+    try {
+      const updated = await BuzzMindAPI.updateAdminClass(current.id, { professorId });
+      current.professorId = updated.professorId;
+      Dash.toast('Professor updated.');
+      await loadAll();
+    } catch (err) {
+      Dash.toast(err.message || 'Could not reassign', 'error');
+    }
+  }
+
+  async function updateClassImage() {
+    const input = document.getElementById('mImage');
+    const imageFile = input.files && input.files[0];
+    if (!current || !imageFile) {
+      Dash.toast('Choose an image first.', 'error');
+      return;
+    }
+    const btn = document.getElementById('mUpdateImage');
+    btn.disabled = true;
+    try {
+      const uploadedImageUrl = await uploadSelectedImage(input);
+      if (!uploadedImageUrl) return;
+      const updated = await BuzzMindAPI.updateAdminClass(current.id, { imageUrl: uploadedImageUrl });
+      current.imageUrl = updated.imageUrl || uploadedImageUrl;
+      Dash.resetFilePicker(input);
+      await refreshCard(current.id);
+      Dash.toast('Class photo updated.');
+    } catch (err) {
+      Dash.toast(err.message || 'Could not update class photo', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function addStudent() {
+    const email = document.getElementById('mStudentEmail').value.trim();
+    if (!email) return;
+    try {
+      const updated = await BuzzMindAPI.addClassStudent(current.id, { email });
+      current.students = updated.students;
+      document.getElementById('mStudentEmail').value = '';
+      renderStudents();
+      Dash.toast('Student added.');
+      await refreshCard(current.id);
+    } catch (err) {
+      Dash.toast(err.message || 'Could not add student', 'error');
+    }
+  }
+
+  async function removeStudent(sid) {
+    try {
+      const updated = await BuzzMindAPI.removeClassStudent(current.id, sid);
+      current.students = updated.students;
+      renderStudents();
+      await refreshCard(current.id);
+    } catch (err) {
+      Dash.toast(err.message || 'Could not remove student', 'error');
+    }
+  }
+
+  async function attachQuiz() {
+    const quizId = document.getElementById('mQuiz').value;
+    if (!quizId) return;
+    try {
+      await BuzzMindAPI.attachQuiz(current.id, quizId);
+      const q = quizzes.find((x) => x.id === quizId);
+      if (q) { q.classId = current.id; current.quizzes.push({ id: q.id, title: q.title, questionCount: q.questionCount }); }
+      renderQuizzes();
+      openManage(current.id);
+      Dash.toast('Quiz attached.');
+    } catch (err) {
+      Dash.toast(err.message || 'Could not attach quiz', 'error');
+    }
+  }
+
+  async function detachQuiz(qid) {
+    try {
+      await BuzzMindAPI.detachQuiz(current.id, qid);
+      current.quizzes = current.quizzes.filter((q) => q.id !== qid);
+      const q = quizzes.find((x) => x.id === qid);
+      if (q) q.classId = null;
+      renderQuizzes();
+      Dash.toast('Quiz detached.');
+    } catch (err) {
+      Dash.toast(err.message || 'Could not detach quiz', 'error');
+    }
+  }
+
+  function launchButton(qid) {
+    return Array.from(document.querySelectorAll('[data-launch-qid]')).find(
+      (btn) => String(btn.dataset.launchQid) === String(qid),
+    );
+  }
+
+  async function launchQuiz(qid) {
+    if (!current || !qid) return;
+    const btn = launchButton(qid);
+    if (btn) btn.disabled = true;
+    try {
+      const session = await BuzzMindAPI.launchQuiz(qid, { classId: current.id });
+      sessionStorage.setItem('gameSessionId', session.sessionId);
+      sessionStorage.setItem('gamePin', session.pin);
+      Dash.toast(`Live lobby created. PIN ${session.pinFormatted || session.pin}`);
+      window.location.href = `/Quiz/professor-quiz.html?session=${encodeURIComponent(session.sessionId)}`;
+    } catch (err) {
+      Dash.toast(err.message || 'Could not launch quiz', 'error');
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function refreshCard(id) {
+    try {
+      classes = await BuzzMindAPI.getAdminClasses();
+      renderClasses();
+    } catch (_) {}
+  }
+
+  document.getElementById('addBtn').addEventListener('click', () => {
+    document.getElementById('createForm').reset();
+    Dash.resetFilePicker('cImage');
+    setCreateAlert('');
+    Dash.openModal('createModal');
+  });
+  document.getElementById('createCancel').addEventListener('click', () => Dash.closeModal('createModal'));
+  document.getElementById('createForm').addEventListener('submit', submitCreate);
+  document.getElementById('manageClose').addEventListener('click', () => Dash.closeModal('manageModal'));
+  document.getElementById('mReassign').addEventListener('click', reassign);
+  document.getElementById('mUpdateImage').addEventListener('click', updateClassImage);
+  document.getElementById('mAddStudent').addEventListener('click', addStudent);
+  document.getElementById('mAttachQuiz').addEventListener('click', attachQuiz);
+  [document.getElementById('createModal'), document.getElementById('manageModal')].forEach((m) => {
+    m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); });
+  });
+
+  Dash.boot();
+  loadAll();
+})();
+</script>
+</body>
+</html>
